@@ -1,0 +1,22 @@
+// types are optional notes that GAN checks while the program runs
+let age: number = 30
+final name: text = "GAN"
+let items: list = [1, 2]
+let ok: bool = true
+let anything: any = 5
+anything = "now it is text"
+print(anything)
+
+func add(a: number, b: number): number {
+    return a + b
+}
+print(add(age, 5))
+
+func greet(who: text): text {
+    return "Hello, " + who
+}
+print(greet(name))
+
+print(typeof(age) + " " + typeof(name) + " " + typeof(items) + " " + typeof(ok))
+age = 31
+print(age)

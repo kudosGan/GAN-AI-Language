@@ -1,0 +1,32 @@
+let nums = [10, 20, 30]
+print(nums)
+print(nums[0])
+print(nums[2] + nums[1])
+nums[1] = 99
+print(nums)
+
+let names = ["Ann", "Bo"]
+print(names)
+print([])
+print([1, [2, 3], "x"])
+
+for n in nums {
+    print(n * 2)
+}
+for ch in "abc" {
+    print(ch)
+}
+
+print(nums == [10, 99, 30])
+print([1, 2] + [3])
+
+let grid = [[1, 2], [3, 4]]
+print(grid[1][0])
+grid[0][1] = 20
+print(grid)
+print("hello"[1])
+
+let a = [1, 2]
+let b = a
+b[0] = 100
+print(a)

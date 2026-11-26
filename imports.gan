@@ -1,0 +1,37 @@
+import "math"
+import "text"
+import "lists"
+import "modules/greeter.gan"
+
+print(math.PI)
+print(math.square(5))
+print(math.factorial(5))
+print(math.isEven(10))
+print(math.isPrime(97))
+print(math.gcd(48, 18))
+print(math.average([2, 4, 6]))
+print(math.clamp(15, 0, 10))
+print(7 % 3)
+
+print(text.repeat("ab", 3))
+print(text.join(["a", "b", "c"], "-"))
+print(text.reverse("GAN"))
+print(text.padLeft("7", 3, "0"))
+print(text.isPalindrome("level"))
+
+print(lists.range(1, 5))
+print(lists.sorted([3, 1, 2]))
+print(lists.reverse([1, 2, 3]))
+
+// the module has its own "count", separate from ours
+let count = 100
+print(greeter.greet("Ann"))
+print(greeter.greet("Bo"))
+print(count)
+print(greeter.count)
+print(greeter.VERSION)
+greeter.helper()
+print(greeter.count)
+
+import "math" // importing the same library again is harmless
+print(math.cube(3))

@@ -1,0 +1,8 @@
+let name = "GAN"
+print("Hello, " + name)
+print("Total: " + 5)
+print("a" + "b" + "c")
+print(1 + 2 + "x")
+print("pi is about " + 3.14)
+print("big? " + (10 > 5))
+print("apple" == "apple")

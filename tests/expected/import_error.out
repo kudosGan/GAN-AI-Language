@@ -1,0 +1,4 @@
+before
+loading broken
+Runtime error in broken.gan on line 2: undefined variable "oops"
+    2 | print(oops)

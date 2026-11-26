@@ -1,0 +1,48 @@
+/* Global look of the whole site: colours, fonts and page width.
+   Every component CSS file uses these variables, so the theme is changed here. */
+:root {
+  --blue: #00add8;        /* GAN's main colour, from the icon */
+  --blue-dark: #0088b6;   /* darker blue for hover */
+  --navy: #005f7a;        /* top bar and footer */
+  --ink: #1c1c1c;         /* normal text */
+  --muted: #333333;       /* quiet text */
+  --soft: #e6f2f9;       /* light background panels */
+  --line: #d9d9d9;        /* thin borders */
+  --yellow: #f7dc6f;      /* small accent, like python.org */
+  --width: 1000px;        /* page content width */
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, Helvetica, sans-serif;  /* fonts every computer has */
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+a { color: var(--blue-dark); }
+
+/* A centred column used by every section */
+.container {
+  max-width: var(--width);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+h1, h2, h3 { line-height: 1.2; }
+
+/* The shared button look */
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+}
+.btn:hover { background: var(--blue-dark); }
+.btn.ghost { background: transparent; border: 2px solid var(--blue); color: var(--blue-dark); }

@@ -1,0 +1,3 @@
+5
+Runtime error on line 3: variable "count" must be number but got text
+    3 | count = "five"

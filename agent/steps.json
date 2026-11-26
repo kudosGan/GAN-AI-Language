@@ -1,0 +1,418 @@
+[
+  {
+    "step": "1-6",
+    "title": "Foundation: lexer, parser and print",
+    "status": "done",
+    "date": "",
+    "summary": "Built the lexer (turns source text into tokens) and a parser that understood one command, print(\"text\"). main.go checks the file ends in .gan, reads it, and runs Lex then Parse.",
+    "learned": [
+      "A lexer splits source text into small pieces called tokens (words, numbers, strings, brackets).",
+      "A parser checks that the tokens follow the grammar of the language and builds a tree of statements.",
+      "Splitting the work into stages (lexer, parser, later an interpreter) keeps each part simple."
+    ],
+    "examples": [],
+    "error_examples": []
+  },
+  {
+    "step": "7",
+    "title": "The interpreter",
+    "status": "done",
+    "date": "2026-11-21",
+    "summary": "Added interpreter.go with a Run function that goes through the statements and does what each one says. Now gan hello.gan really prints Hello, world instead of showing the tree.",
+    "learned": [
+      "The parser understands structure; the interpreter acts on it. Keeping them separate lets each grow on its own.",
+      "The pipeline is now complete: Lexer, then Parser, then Interpreter."
+    ],
+    "examples": [
+      "hello.gan"
+    ],
+    "error_examples": []
+  },
+  {
+    "step": "8",
+    "title": "Variables",
+    "status": "done",
+    "date": "2026-11-21",
+    "summary": "Added let x = 5. The interpreter keeps an environment, a table (a Go map) from variable names to values. print can now show a string, a number or a variable.",
+    "learned": [
+      "let creates a variable; the environment is a map from names to values.",
+      "Statements (things the program does) and expressions (things that have a value) became separate ideas in the parser.",
+      "A bare word inside print(...) is a variable lookup, so print(Hello) is an 'undefined variable' error.",
+      "Numbers are stored as float64 and printed without trailing zeros."
+    ],
+    "examples": [
+      "var.gan"
+    ],
+    "error_examples": [
+      "vars_error.gan"
+    ]
+  },
+  {
+    "step": "9",
+    "title": "Math with precedence",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added + - * / with correct precedence, so 2 + 3 * 4 gives 14. The parser has one function per precedence level, each calling the tighter one below it.",
+    "learned": [
+      "Precedence is handled by layering parser functions: loosest level first, tightest level last.",
+      "Math works on numbers only, and dividing by zero is a runtime error.",
+      "Parentheses and negative numbers were left out on purpose and are not supported yet."
+    ],
+    "examples": [
+      "math.gan"
+    ],
+    "error_examples": [
+      "math_error.gan"
+    ]
+  },
+  {
+    "step": "10",
+    "title": "Comparisons and if/else",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added == != < > <= >= and if/else with { } blocks. Comparisons give true or false. The parser's statement code became parseStatement, and parseBlock reuses it for the lines inside { }.",
+    "learned": [
+      "Blocks are written with { }.",
+      "The lexer looks one character ahead to tell = (assignment) from == (comparison).",
+      "Comparisons are the loosest precedence level, below + and -.",
+      "An if condition must be true or false; if 5 { ... } is a runtime error.",
+      "Variables are still global: there is no block scope yet. else if is not supported."
+    ],
+    "examples": [
+      "if.gan"
+    ],
+    "error_examples": [
+      "if_error.gan"
+    ]
+  },
+  {
+    "step": "11",
+    "title": "Loops and assignment",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added while loops and assignment (x = x + 1). A loop needs a way to change a variable, otherwise its condition could never change. GAN v1 was packaged after this step.",
+    "learned": [
+      "while checks its condition before every pass and stops when it is false.",
+      "let creates a variable; name = value changes an existing one, and it is an error if the variable does not exist. This catches typos.",
+      "A loop whose condition never becomes false runs forever; press Ctrl+C to stop it.",
+      "Large numbers now print as plain decimals (1000000, not 1e+06) after a formatting fix."
+    ],
+    "examples": [
+      "while.gan"
+    ],
+    "error_examples": [
+      "while_error.gan"
+    ]
+  },
+  {
+    "step": "12",
+    "title": "Functions",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added functions: func name(a, b) { ... }, return, and calls like add(2, 3). Each call gets a fresh environment holding just its parameters, so functions can call themselves (recursion).",
+    "learned": [
+      "A function is defined once with func and runs only when it is called.",
+      "A call is an expression, so add(1, 2) * 3 works, and a call can also stand alone on a line.",
+      "Each call gets a fresh environment with only its parameters, so a function cannot see global variables yet.",
+      "return stops the function and hands back a value; the interpreter passes this up through if and while blocks.",
+      "A function that calls itself forever is stopped with 'too many nested calls' instead of crashing.",
+      "A function must be defined above the line that calls it."
+    ],
+    "examples": [
+      "func.gan"
+    ],
+    "error_examples": [
+      "func_error.gan"
+    ]
+  },
+  {
+    "step": "13",
+    "title": "Better error messages with line numbers",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Errors now say which line of the .gan file went wrong and show that line of the program underneath. Tokens carry a Line, statements remember their Line, and errors are tagged with it.",
+    "learned": [
+      "The lexer counts newlines, so every token knows its line. Before this step that information was thrown away.",
+      "Each statement remembers the line it was written on, because by the time the interpreter runs, the tokens are gone.",
+      "When a statement fails, the error gets that statement's line. If the failing statement is inside an if, while or function, the innermost line wins, so the error points at the exact line that failed.",
+      "Syntax errors use the line of the token that confused the parser; errors at the end of the file point at the last line.",
+      "Cryptic errors became plain ones: an unterminated string and an unexpected character now say exactly that.",
+      "An error inside a function shows the line inside the function. There is no 'called from' trail yet."
+    ],
+    "examples": [],
+    "error_examples": [
+      "lines_error.gan",
+      "syntax_error.gan",
+      "string_error.gan"
+    ]
+  },
+  {
+    "step": "14",
+    "title": "Parentheses and negative numbers",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added ( ) for grouping in math and a minus sign in front of a value, so (2 + 3) * 4 gives 20 and -5 + 8 gives 3.",
+    "learned": [
+      "Parentheses are handled by the tightest parser level: it reads ( then a whole expression then ). Because the inside is a full expression, a group counts as one value.",
+      "A name followed by ( is still a function call; a lone ( is grouping.",
+      "A new parser level, parseUnary, handles a minus sign in front of a value. It sits tighter than * and /, so -2 * 3 means (-2) * 3.",
+      "The same rule makes -x work on variables and 5 - -3 work with no special cases.",
+      "Negating a string is a runtime error: can only negate numbers.",
+      "A negative zero (from -0) is printed as plain 0."
+    ],
+    "examples": [
+      "parens.gan"
+    ],
+    "error_examples": [
+      "parens_error.gan"
+    ]
+  },
+  {
+    "step": "15",
+    "title": "Comments",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added // comments. Everything from // to the end of the line is ignored, so you can leave notes in a program.",
+    "learned": [
+      "The lexer skips from // to the end of the line, but leaves the newline alone so line numbers stay correct.",
+      "A // inside a string is just text, not a comment, because the lexer reads whole strings first.",
+      "A single / still means divide."
+    ],
+    "examples": [
+      "comments.gan"
+    ],
+    "error_examples": [
+      "comments_error.gan"
+    ]
+  },
+  {
+    "step": "16",
+    "title": "Decimal numbers",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Numbers can now have a decimal point: 3.14. Before this, GAN could only read whole numbers in a program (it could already calculate with decimals, such as 10 / 4).",
+    "learned": [
+      "The lexer keeps reading after a . if digits follow, so 3.14 is one NUMBER token.",
+      "A dot with no digits after it (5.) or a second dot (1.2.3) is a syntax error: unexpected character.",
+      "Numbers are float64, so some results show tiny rounding noise, like most languages."
+    ],
+    "examples": [
+      "decimals.gan"
+    ],
+    "error_examples": [
+      "decimals_error.gan"
+    ]
+  },
+  {
+    "step": "17",
+    "title": "Joining text",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "+ now joins text: \"Hello, \" + name. If either side is text, the other side is turned into text and they are joined.",
+    "learned": [
+      "+ means add for two numbers and join when at least one side is text.",
+      "1 + 2 + \"x\" gives 3x, because 1 + 2 is worked out first.",
+      "Other math on text, like \"a\" - \"b\", is still an error."
+    ],
+    "examples": [
+      "strings.gan"
+    ],
+    "error_examples": [
+      "strings_error.gan"
+    ]
+  },
+  {
+    "step": "18",
+    "title": "true/false, and/or/not, else if",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added the words true and false, the operators and, or and not, and else if chains.",
+    "learned": [
+      "or is the loosest level, then and, then not, then comparisons: the parser has one function per level.",
+      "and / or stop early: in false and x, x is never looked at, so it cannot cause an error.",
+      "and, or and not need true or false; 1 and true is a runtime error.",
+      "else if is just an else whose block is another if statement."
+    ],
+    "examples": [
+      "logic.gan",
+      "elseif.gan"
+    ],
+    "error_examples": [
+      "logic_error.gan",
+      "elseif_error.gan"
+    ]
+  },
+  {
+    "step": "19",
+    "title": "Scope and final",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Variables now belong to the block they are made in. Functions can read and change global variables. Added final (a value that can never change) and var (the same as let).",
+    "learned": [
+      "A scope is a table of variables with an optional parent scope around it. Looking a name up checks the inner scope first, then the ones around it.",
+      "if, while and for blocks and function calls each get their own scope, so a let inside a block disappears when the block ends.",
+      "let (or var) creates a variable in the current scope and can hide an outer variable of the same name; name = value changes the existing variable wherever it lives.",
+      "final x = 5 makes a value that cannot be changed: assigning to it, or declaring it again, is a runtime error.",
+      "Functions run in a scope inside the global scope, so they can use globals but not the local variables of whoever called them.",
+      "This changed an earlier rule: a let inside an if used to stay visible afterwards, now it does not."
+    ],
+    "examples": [
+      "scope.gan",
+      "final.gan"
+    ],
+    "error_examples": [
+      "scope_error.gan",
+      "final_error.gan"
+    ]
+  },
+  {
+    "step": "20",
+    "title": "for loops",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added for i in 1 to 5 { ... }, which counts from the first number to the last, both included.",
+    "learned": [
+      "The loop variable lives in a fresh scope for each pass and is gone after the loop.",
+      "If the start is bigger than the end, the body never runs.",
+      "The start and end can be any expressions that give numbers, such as start + 2.",
+      "return works inside a for loop and ends the function.",
+      "A for loop is a tidier way to write the counter-and-while pattern from step 11."
+    ],
+    "examples": [
+      "for.gan"
+    ],
+    "error_examples": [
+      "for_error.gan"
+    ]
+  },
+  {
+    "step": "21",
+    "title": "Lists",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Added lists: [1, 2, 3], reading an item with list[0], changing one with list[0] = 5, going through them with for x in list, and + to put two lists together.",
+    "learned": [
+      "Positions start at 0: the first item is list[0]. Asking for a position that does not exist is a runtime error that says how many items the list has.",
+      "A list can hold anything, including other lists: grid[1][0].",
+      "Two names for the same list share it: after let b = a, changing b also changes a (like Python).",
+      "== compares lists item by item, so [1, 2] == [1, 2] is true.",
+      "Text can be indexed ('hello'[1] is 'e') and looped over, but text cannot be changed in place.",
+      "The parser gained a postfix level: after reading a value it keeps reading [index] parts."
+    ],
+    "examples": [
+      "lists.gan"
+    ],
+    "error_examples": [
+      "lists_error.gan"
+    ]
+  },
+  {
+    "step": "22",
+    "title": "Built-in functions",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "GAN now comes with functions written in Go: len, push, pop, str, num, input, abs, floor, round, sqrt, pow, min, max, upper, lower and contains.",
+    "learned": [
+      "Built-ins live in builtins.go as a table from name to a Go function, with how many arguments each takes.",
+      "A call first looks for a function you wrote, then for a built-in, so your own function wins if the names match.",
+      "input(question) shows the question and reads one typed line as text; num(text) turns it into a number.",
+      "push changes a list and gives no value back, so using it inside print(...) is an error.",
+      "Wrong argument counts and wrong kinds of value give plain errors, e.g. 'function \"len\" expects 1 argument but got 0'."
+    ],
+    "examples": [
+      "builtins.gan",
+      "input.gan"
+    ],
+    "error_examples": [
+      "builtins_error.gan"
+    ]
+  },
+  {
+    "step": "23",
+    "title": "Libraries and import",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "import \"math\" loads a library written in GAN and gives it a name, so you can write math.square(5) and math.PI. Three libraries come with GAN: math, text and lists. Added the % (remainder) operator and the fail(message) built-in because the libraries needed them.",
+    "learned": [
+      "A module is a .gan file that has been loaded. It has its own functions and its own global variables, kept apart from the program that imported it.",
+      "import \"name\" looks in the libs folder next to gan.exe, then next to your program. A path such as import \"modules/tools.gan\" is relative to the file that contains the import.",
+      "A library is loaded once, even if it is imported twice, and its top-level code runs at that moment (so a print in it shows up at import time).",
+      "Names are reached with a dot: math.PI is a variable, math.square(5) is a function call. The parser reads these in its postfix level, next to [index].",
+      "Errors inside a library name the library file and show its line: Runtime error in math.gan on line 78.",
+      "Circular imports (a imports b imports a) are caught and reported.",
+      "7 % 3 is the remainder, 1. fail(\"message\") stops the program with your own error message; the libraries use it for bad arguments."
+    ],
+    "examples": [
+      "imports.gan"
+    ],
+    "error_examples": [
+      "import_error.gan",
+      "import_missing.gan"
+    ]
+  },
+  {
+    "step": "24",
+    "title": "Types",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "Optional type notes, checked while the program runs: let x: number = 5, func add(a: number, b: number): number. The types are number, text, bool, list and any. typeof(x) tells you a value's type.",
+    "learned": [
+      "A type note is optional. Without one a variable can hold anything, as before.",
+      "With one, GAN checks it every time the variable is created or changed, every time the function is called with that parameter, and when the function returns.",
+      "The error says exactly what was expected and what arrived: variable \"count\" must be number but got text.",
+      "any means 'no restriction', so you can write the note and still allow everything.",
+      "These checks happen when the program runs, not before it starts. A wrong type on a line that never runs is never noticed.",
+      "A function with a return type that finishes without returning is an error."
+    ],
+    "examples": [
+      "types.gan"
+    ],
+    "error_examples": [
+      "types_error.gan",
+      "types_param_error.gan",
+      "types_return_error.gan"
+    ]
+  },
+  {
+    "step": "25",
+    "title": "Windows installer",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "GAN-Setup.exe is a Windows setup wizard. It installs GAN for the current user (no administrator rights), adds it to PATH, gives .gan files the GAN icon and double-click-to-run, installs the VS Code icon theme, and registers an uninstaller in Windows Installed apps.",
+    "learned": [
+      "The installer is built from tools Windows already has: IExpress makes the self-extracting .exe, and a PowerShell script with a WinForms window is the wizard.",
+      "The .exe holds install.ps1 and payload.zip (gan.exe, libs, examples, icons), because IExpress cannot keep folders.",
+      "Installing for the current user means files go to %LOCALAPPDATA%\\Programs\\GAN and settings to HKCU, so no administrator rights are needed.",
+      "PATH is edited straight in the registry so a PATH containing %VARIABLES% keeps working; adding twice does not duplicate, and uninstalling removes exactly the entry that was added.",
+      "The installer was tested without a person clicking: a silent install into a scratch folder with a private test registry area, then an uninstall through the registered command.",
+      "gan --version prints the version, which the installer and docs use to check an install."
+    ],
+    "examples": [],
+    "error_examples": []
+  },
+  {
+    "step": "26",
+    "title": "The GAN tutorial",
+    "status": "done",
+    "date": "2026-11-25",
+    "summary": "A 14-lesson course for learning GAN from zero (tutorial folder): welcome, printing, variables, math, text, decisions, loops, functions, lists, input, libraries, types, errors and projects. It comes with solutions to every exercise and a one-page reference.",
+    "learned": [
+      "Every example in the course is run by the real gan.exe: a checker script fills in the output blocks and fails if GAN ever prints something different, so the lessons cannot go out of date silently.",
+      "Writing the lessons found a real problem: a recorded run of input() did not show the typing. GAN now echoes input that is piped in, so transcripts read like a real session.",
+      "Each lesson is one idea, shows real errors on purpose, and ends with exercises; the last lesson builds small projects (FizzBuzz, primes, a guessing game, a calculator).",
+      "The tutorial is included in GAN-Setup.exe and installed next to the examples."
+    ],
+    "examples": [],
+    "error_examples": []
+  },
+  {
+    "step": "later",
+    "title": "After the tutorial: more ideas",
+    "status": "planned",
+    "date": "",
+    "summary": "Ideas still to come: concurrency (from Go), break and continue, dictionaries, text escapes, random numbers, reading files, and a package download system.",
+    "learned": [],
+    "examples": [],
+    "error_examples": []
+  }
+]

@@ -1,0 +1,6 @@
+let name = input("What is your name? ")
+print("Hello, " + name)
+let age = num(input("Age? "))
+print(age + 1)
+let rest = input()
+print("[" + rest + "]")

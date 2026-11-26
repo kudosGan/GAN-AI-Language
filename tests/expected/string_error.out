@@ -1,0 +1,2 @@
+Syntax error on line 2: unterminated string (a string needs a closing ")
+    2 | print("oops)

@@ -1,0 +1,4 @@
+/* FeatureCard: white card with a blue top edge */
+.feature { border: 1px solid var(--line); border-top: 4px solid var(--blue); border-radius: 6px; padding: 20px; }
+.feature h3 { margin: 0 0 8px; }
+.feature p { margin: 0; color: var(--muted); }

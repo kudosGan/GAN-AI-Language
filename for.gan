@@ -1,0 +1,38 @@
+for i in 1 to 5 {
+    print(i)
+}
+
+let sum = 0
+for n in 1 to 100 {
+    sum = sum + n
+}
+print(sum)
+
+func fact(n) {
+    let r = 1
+    for k in 2 to n {
+        r = r * k
+    }
+    return r
+}
+print(fact(5))
+
+let start = 3
+for j in start to start + 2 {
+    print("j = " + j)
+}
+
+for z in 5 to 1 {
+    print("never printed")
+}
+
+func firstOver(limit) {
+    for q in 1 to 100 {
+        if q * q > limit {
+            return q
+        }
+    }
+    return 0
+}
+print(firstOver(50))
+print("done")

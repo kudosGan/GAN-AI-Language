@@ -1,0 +1,30 @@
+let x = "outer"
+if true {
+    let x = "inner"
+    print(x)
+}
+print(x)
+
+let count = 0
+func addOne() {
+    count = count + 1
+    print(count)
+}
+addOne()
+addOne()
+print(count)
+
+let total = 0
+let i = 0
+while i < 3 {
+    let step = 10
+    total = total + step
+    i = i + 1
+}
+print(total)
+
+func shout(word) {
+    let loud = word + "!"
+    return loud
+}
+print(shout("hey"))

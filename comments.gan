@@ -1,0 +1,6 @@
+// This whole line is a comment
+print("start")   // a comment after code
+let x = 10 // another one
+print(x / 2) // prints 5
+// print("this never runs")
+print("end")

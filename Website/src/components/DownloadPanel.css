@@ -1,0 +1,5 @@
+/* DownloadPanel: a soft box so the download stands out */
+.download { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 28px; }
+.download h2 { margin-top: 0; }
+.download ol { margin: 20px 0 12px; }
+.download-note { color: var(--muted); font-size: 0.9rem; }

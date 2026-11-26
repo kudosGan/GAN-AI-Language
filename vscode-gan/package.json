@@ -1,0 +1,13 @@
+{
+  "name": "gan-seti",
+  "displayName": "Seti + GAN icons",
+  "description": "Seti file icons plus a GAN icon for .gan files",
+  "publisher": "local",
+  "version": "0.0.2",
+  "engines": { "vscode": "^1.60.0" },
+  "contributes": {
+    "iconThemes": [
+      { "id": "gan-seti", "label": "Seti + GAN", "path": "./icons/gan-seti-icon-theme.json" }
+    ]
+  }
+}

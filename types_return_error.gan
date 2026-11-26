@@ -1,0 +1,4 @@
+func half(x: number): number {
+    return "half of " + x
+}
+print(half(8))

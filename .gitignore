@@ -1,0 +1,17 @@
+# Built files (they are made again from the source)
+gan.exe
+dist/
+*.zip
+installer/build/
+installer/GAN-Setup.exe
+
+# Website
+node_modules/
+
+# Python and agent scratch files
+__pycache__/
+agent/web/backup/
+agent/.ai-cache.json
+tutorial/.run/
+tests/.run/
+gan.exe~

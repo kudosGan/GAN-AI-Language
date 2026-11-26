@@ -1,0 +1,50 @@
+// GAN standard library: text
+// Use it with:  import "text"   then   text.reverse("GAN")
+
+func repeat(piece, times) {
+    let result = ""
+    for i in 1 to times {
+        result = result + piece
+    }
+    return result
+}
+
+// puts the items of a list into one piece of text: join(["a", "b"], "-") is "a-b"
+func join(list, separator) {
+    let result = ""
+    let first = true
+    for item in list {
+        if first {
+            first = false
+        } else {
+            result = result + separator
+        }
+        result = result + str(item)
+    }
+    return result
+}
+
+func reverse(text) {
+    let result = ""
+    for ch in text {
+        result = ch + result
+    }
+    return result
+}
+
+func isEmpty(text) {
+    return len(text) == 0
+}
+
+// adds fill characters on the left until the text is width long: padLeft("7", 3, "0") is "007"
+func padLeft(text, width, fill) {
+    let result = text
+    while len(result) < width {
+        result = fill + result
+    }
+    return result
+}
+
+func isPalindrome(text) {
+    return text == reverse(text)
+}

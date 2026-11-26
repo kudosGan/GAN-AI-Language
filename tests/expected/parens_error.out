@@ -1,0 +1,2 @@
+Syntax error on line 2: expected RPAREN but got IDENT "print"
+    2 | print(x)

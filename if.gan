@@ -1,0 +1,18 @@
+let x = 7
+if x > 5 {
+    print("big")
+} else {
+    print("small")
+}
+
+if x == 3 {
+    print("three")
+} else {
+    print("not three")
+}
+
+if x + 1 >= 8 {
+    print("x plus one is at least 8")
+}
+
+print(x < 5)

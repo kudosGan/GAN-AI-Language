@@ -1,0 +1,2 @@
+Runtime error on line 1: cannot find library "nothing" (looked in: the libs folder next to gan.exe, the libs folder next to your program, and your program's folder)
+    1 | import "nothing"

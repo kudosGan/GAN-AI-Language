@@ -1,0 +1,2 @@
+Runtime error on line 4: undefined variable "hidden"
+    4 | print(hidden)

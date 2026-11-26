@@ -1,0 +1,8 @@
+/* Hero: light panel, text and code side by side (stacked on phones) */
+.hero { background: var(--soft); padding: 56px 0; border-bottom: 4px solid var(--yellow); }
+.hero-row { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
+.hero h1 { font-size: 2.4rem; margin: 0 0 12px; color: var(--navy); }
+.hero p { color: var(--muted); font-size: 1.1rem; margin-bottom: 24px; }
+.hero .btn { margin-right: 12px; } /* Add margin for better spacing between buttons */
+.hero .ghost { background: var(--soft); border-color: var(--blue); color: var(--blue); } /* Style for ghost button */
+@media (max-width: 760px) { .hero-row { grid-template-columns: 1fr; } }  /* one column on small screens */

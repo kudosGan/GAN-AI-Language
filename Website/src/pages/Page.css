@@ -1,0 +1,5 @@
+/* Shared by every page: spacing and the 3-column card grid */
+.page { padding-top: 36px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 760px) { .grid-3 { grid-template-columns: 1fr; } }  /* stack on phones */
+.page-cta { margin-top: 28px; font-size: 1.05rem; }

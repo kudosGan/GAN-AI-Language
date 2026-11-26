@@ -1,0 +1,2 @@
+Syntax error on line 3: expected LBRACE but got IDENT "print"
+    3 | if x > 1 print("big")

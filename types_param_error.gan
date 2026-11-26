@@ -1,0 +1,5 @@
+func double(x: number): number {
+    return x * 2
+}
+print(double(4))
+print(double("4"))

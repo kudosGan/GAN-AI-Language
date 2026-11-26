@@ -1,0 +1,2 @@
+Runtime error on line 1: and needs true or false on both sides
+    1 | print(1 and true)

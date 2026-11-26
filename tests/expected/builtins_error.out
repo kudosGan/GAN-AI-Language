@@ -1,0 +1,3 @@
+4
+Runtime error on line 2: cannot turn "abc" into a number
+    2 | print(num("abc"))

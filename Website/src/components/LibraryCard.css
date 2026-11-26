@@ -1,0 +1,5 @@
+/* LibraryCard: a section per library, tags for the function names */
+.library { margin-bottom: 36px; }
+.library h2 { margin-bottom: 4px; }
+.library-funcs { display: flex; flex-wrap: wrap; gap: 8px; }
+.library-funcs code { background: var(--soft); border: 1px solid var(--line); padding: 2px 10px; border-radius: 4px; }

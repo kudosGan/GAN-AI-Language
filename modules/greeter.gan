@@ -1,0 +1,12 @@
+print("greeter loaded")
+final VERSION = 2
+let count = 0
+
+func helper() {
+    count = count + 1
+    return count
+}
+
+func greet(name) {
+    return "Hello, " + name + " (call " + helper() + ")"
+}

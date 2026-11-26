@@ -1,0 +1,3 @@
+// comments are ignored, but they still count as lines
+// so this error is on line 3
+print(oops)

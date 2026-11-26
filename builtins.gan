@@ -1,0 +1,37 @@
+let items = []
+push(items, 5)
+push(items, 7)
+push(items, 9)
+print(items)
+print(len(items))
+print(pop(items))
+print(items)
+print(len("héllo"))
+print(str(42) + "!")
+print(num("3.5") * 2)
+print(abs(-4))
+print(min(3, 8))
+print(max(3, 8))
+print(sqrt(16))
+print(pow(2, 10))
+print(round(2.6))
+print(floor(2.6))
+print(upper("gan"))
+print(lower("GAN"))
+print(contains([1, 2, 3], 2))
+print(contains("hello", "ell"))
+
+func sum(list) {
+    let t = 0
+    for x in list {
+        t = t + x
+    }
+    return t
+}
+print(sum([1, 2, 3, 4]))
+
+// a function you write wins over a built-in with the same name
+func len(x) {
+    return "my own len"
+}
+print(len([1, 2]))

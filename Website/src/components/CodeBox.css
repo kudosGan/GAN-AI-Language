@@ -1,0 +1,5 @@
+/* CodeBox: dark box with light monospace text */
+.codebox { background: #0f1b27; border-radius: 8px; overflow: hidden; text-align: left; }
+.codebox-title { background: #19303f; color: #9fc4d6; padding: 8px 16px; font-size: 0.85rem; }
+.codebox pre { margin: 0; padding: 16px; overflow-x: auto; }  /* scroll sideways if too wide */
+.codebox code { color: #e7f3f9; font-family: Consolas, "Courier New", monospace; font-size: 0.95rem; }

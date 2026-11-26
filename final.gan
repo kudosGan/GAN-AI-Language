@@ -1,0 +1,5 @@
+final daysPerWeek = 7
+var weeks = 2
+print(daysPerWeek * weeks)
+weeks = 3
+print(daysPerWeek * weeks)
