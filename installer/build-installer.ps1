@@ -52,7 +52,7 @@ Copy-Item (Join-Path $root 'gan-icon.svg') $icons
 Copy-Item (Join-Path $root 'vscode-gan\gan-seti.vsix') $icons
 
 @'
-GAN 0.3 (beta)
+GAN beta
 ==============
 
 Open a NEW terminal window, then:

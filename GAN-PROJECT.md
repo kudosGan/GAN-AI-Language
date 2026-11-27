@@ -1,8 +1,8 @@
 # GAN programming language: project handoff
 
 ## About
-GAN is my own programming language (file extension .gan), written in Go. It is named after generative adversarial networks; the goal is a language designed for AI and agentic AI. Current version: 0.3 beta. Folder: C:\Desktop\GAN. Go 1.27 on Windows, module `mylang`.
-Build: `go build -o gan.exe .`   Run: `gan file.gan`   Version: `gan --version` (GAN 0.3 (beta))
+GAN is my own programming language (file extension .gan), written in Go. It is named after generative adversarial networks; the goal is a language designed for AI and agentic AI. Current version: beta (no version number; do not change it unless I ask). Folder: C:\Desktop\GAN. Go 1.27 on Windows, module `mylang`.
+Build: `go build -o gan.exe .`   Run: `gan file.gan`   Version: `gan --version` (GAN beta)
 Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; builtins.go, modules.go, errors.go, tensor.go, autograd.go, ai.go; main.go ties them together).
 
 ## How I want you to work
@@ -100,7 +100,7 @@ func main() {
 	}
 
 	if os.Args[1] == "--version" || os.Args[1] == "-v" {
-		fmt.Println("GAN 0.3 (beta)")
+		fmt.Println("GAN beta") // keep as "beta": no version number until the owner says so
 		return
 	}
 
