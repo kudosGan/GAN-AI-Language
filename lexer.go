@@ -1,5 +1,10 @@
 package main
 
+import (
+	"strings"
+	"unicode/utf8"
+)
+
 type TokenType string
 
 const (
@@ -39,6 +44,55 @@ type Token struct {
 
 // unterminatedString is the Value of the ILLEGAL token made for a string with no closing quote.
 const unterminatedString = "unterminated string"
+
+// badEscape starts the Value of the ILLEGAL token made for a wrong escape such as \q.
+// The whole Value is the error message.
+const badEscape = "unknown escape"
+
+// escapes are the characters that may follow a backslash inside text, and what each one means.
+var escapes = map[byte]byte{
+	'"':  '"',  // \"  a double quote
+	'\\': '\\', // \\  one backslash
+	'n':  '\n', // \n  a new line
+	't':  '\t', // \t  a tab
+}
+
+// lexString reads text that starts with the " at src[i]. It returns the text with its escapes
+// turned into real characters, the position after the closing quote, and how many lines the
+// text went down. problem is "" when all is well; otherwise it says what is wrong, and
+// problemLines says how many lines down from the opening quote the mistake is.
+func lexString(src string, i int) (text string, next, lines int, problem string, problemLines int) {
+	var out strings.Builder
+	for i++; i < len(src); i++ {
+		c := src[i]
+		switch {
+		case c == '"': // the closing quote
+			return out.String(), i + 1, lines, problem, problemLines
+		case c == '\\' && i+1 < len(src):
+			meaning, known := escapes[src[i+1]]
+			if !known {
+				if problem == "" { // report the first mistake, but keep reading to the closing quote
+					after, _ := utf8.DecodeRuneInString(src[i+1:])
+					shown := " \\" + string(after)
+					if after == '\n' || after == '\r' {
+						shown = ": a backslash at the end of a line"
+					}
+					problem = badEscape + shown + ` in text (you can use \" \\ \n \t)`
+					problemLines = lines
+				}
+				continue // the next character is read normally, so lines are still counted
+			}
+			out.WriteByte(meaning)
+			i++ // the character after the backslash is used up too
+		default:
+			if c == '\n' {
+				lines++
+			}
+			out.WriteByte(c)
+		}
+	}
+	return "", len(src), lines, unterminatedString, 0
+}
 
 func isLetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
@@ -137,19 +191,16 @@ func Lex(src string) []Token {
 			i++
 		case c == '"':
 			startLine := line // a string is reported on the line where it starts
-			start := i + 1
-			i++
-			for i < len(src) && src[i] != '"' {
-				if src[i] == '\n' {
-					line++
-				}
-				i++
-			}
-			if i >= len(src) {
-				tokens = append(tokens, Token{ILLEGAL, unterminatedString, startLine})
-			} else {
-				tokens = append(tokens, Token{STRING, src[start:i], startLine})
-				i++
+			text, next, lines, problem, problemLines := lexString(src, i)
+			i = next
+			line += lines
+			switch problem {
+			case "":
+				tokens = append(tokens, Token{STRING, text, startLine})
+			case unterminatedString:
+				tokens = append(tokens, Token{ILLEGAL, problem, startLine})
+			default: // a wrong escape is reported on the line where it is
+				tokens = append(tokens, Token{ILLEGAL, problem, startLine + problemLines})
 			}
 		case isLetter(c):
 			start := i

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // ---- Expressions: things that produce a value ----
@@ -131,6 +133,10 @@ type FuncStatement struct {
 	ReturnType string // the type written after the ) , or "" if none
 	Body       []Statement
 	Line       int
+
+	// A tool is a function that an AI model will be able to use (see parseTool).
+	IsTool      bool
+	Description string // tools only: tells a model what the tool does
 }
 
 // Param is one parameter of a function, with an optional type.
@@ -234,6 +240,9 @@ func (p *Parser) unexpected(tok *Token, wanted string) error {
 	if tok.Type == ILLEGAL || tok.Type == DOT {
 		if tok.Value == unterminatedString {
 			return at(tok.Line, fmt.Errorf("unterminated string (a string needs a closing \")"))
+		}
+		if strings.HasPrefix(tok.Value, badEscape) {
+			return at(tok.Line, errors.New(tok.Value)) // the lexer already wrote the message
 		}
 		return at(tok.Line, fmt.Errorf("unexpected character %q", tok.Value))
 	}
@@ -561,6 +570,119 @@ func (p *Parser) parseBlock() ([]Statement, error) {
 	}
 }
 
+// parseFunc reads the rest of a function, after the word func (or tool):
+// name(a: number, b): number { ... }
+func (p *Parser) parseFunc(line int) (Statement, error) {
+	fn, err := p.parseHeader(line)
+	if err != nil {
+		return nil, err
+	}
+	return p.parseBody(fn)
+}
+
+// parseHeader reads the name, the parameters and the return type.
+func (p *Parser) parseHeader(line int) (FuncStatement, error) {
+	none := FuncStatement{}
+	fname, err := p.expect(IDENT)
+	if err != nil {
+		return none, err
+	}
+	if _, err := p.expect(LPAREN); err != nil {
+		return none, err
+	}
+	var params []Param
+	if tok := p.peek(); tok != nil && tok.Type == RPAREN { // no parameters
+		p.pos++
+	} else {
+		for {
+			param, err := p.expect(IDENT)
+			if err != nil {
+				return none, err
+			}
+			paramType, err := p.parseOptionalType()
+			if err != nil {
+				return none, err
+			}
+			params = append(params, Param{Name: param.Value, Type: paramType})
+			if tok := p.peek(); tok != nil && tok.Type == COMMA {
+				p.pos++
+				continue
+			}
+			break
+		}
+		if _, err := p.expect(RPAREN); err != nil {
+			return none, err
+		}
+	}
+	returnType, err := p.parseOptionalType() // func add(a, b): number { ... }
+	if err != nil {
+		return none, err
+	}
+	return FuncStatement{Name: fname.Value, Params: params, ReturnType: returnType, Line: line}, nil
+}
+
+// parseBody reads the { ... } of a function.
+func (p *Parser) parseBody(fn FuncStatement) (Statement, error) {
+	if _, err := p.expect(LBRACE); err != nil {
+		return nil, err
+	}
+	// a function body starts outside any loop, even if the func is written inside one
+	outerLoops := p.loopDepth
+	p.loopDepth = 0
+	body, err := p.parseBlock()
+	p.loopDepth = outerLoops
+	if err != nil {
+		return nil, err
+	}
+	fn.Body = body
+	return fn, nil
+}
+
+// toolTypes are the types a tool's parameters may have: the ones an AI model can send.
+var toolTypes = map[string]bool{"number": true, "text": true, "bool": true, "list": true}
+
+// parseTool reads a tool: a function an AI model will be able to use.
+//
+//	tool add(a: number, b: number): number "Adds two numbers" { ... }
+//
+// So that a model can be told how to use it, every parameter needs a type and the tool needs
+// a description. These are checked here, before the program runs.
+func (p *Parser) parseTool(line int) (Statement, error) {
+	fn, err := p.parseHeader(line)
+	if err != nil {
+		return nil, err
+	}
+	wrong := func(format string, args ...any) error {
+		return at(line, fmt.Errorf("tool %q"+format, append([]any{fn.Name}, args...)...))
+	}
+	seen := map[string]bool{}
+	for _, param := range fn.Params {
+		if param.Type == "" {
+			return nil, wrong(": parameter %q needs a type, so a model knows what to send (number, text, bool or list)", param.Name)
+		}
+		if !toolTypes[param.Type] {
+			return nil, wrong(": parameter %q cannot be %s; a model can send number, text, bool or list", param.Name, param.Type)
+		}
+		if seen[param.Name] { // a model names each value it sends, so names must be different
+			return nil, wrong(" has two parameters named %q", param.Name)
+		}
+		seen[param.Name] = true
+	}
+	description := p.peek()
+	if description != nil && description.Type == ILLEGAL {
+		return nil, p.unexpected(description, "a description") // e.g. a missing closing quote
+	}
+	if description == nil || description.Type != STRING {
+		return nil, wrong(" needs a description in quotes before the {, to tell a model what it does")
+	}
+	p.pos++
+	if strings.TrimSpace(description.Value) == "" {
+		return nil, wrong(" has an empty description")
+	}
+	fn.IsTool, fn.Description = true, description.Value
+	return p.parseBody(fn)
+}
+
 // parseStatement reads one command: print, let, if, while, func, return, an assignment or a call.
 func (p *Parser) parseStatement() (Statement, error) {
 	name, err := p.expect(IDENT)
@@ -568,6 +690,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 		return nil, err
 	}
 	line := name.Line // the statement is on the line where its first word is
+
+	// "tool" starts a tool only when a name follows it, so a variable called tool still works
+	if next := p.peek(); name.Value == "tool" && next != nil && next.Type == IDENT {
+		return p.parseTool(line)
+	}
 
 	switch name.Value {
 	case "print": // print(value)
@@ -684,53 +811,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 		return ForStatement{Var: loopVar.Value, From: first, To: last, Body: body, Line: line}, nil
 
 	case "func": // func name(a, b) { ... }   (types are optional: func add(a: number): number { ... })
-		fname, err := p.expect(IDENT)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(LPAREN); err != nil {
-			return nil, err
-		}
-		var params []Param
-		if tok := p.peek(); tok != nil && tok.Type == RPAREN { // no parameters
-			p.pos++
-		} else {
-			for {
-				param, err := p.expect(IDENT)
-				if err != nil {
-					return nil, err
-				}
-				paramType, err := p.parseOptionalType()
-				if err != nil {
-					return nil, err
-				}
-				params = append(params, Param{Name: param.Value, Type: paramType})
-				if tok := p.peek(); tok != nil && tok.Type == COMMA {
-					p.pos++
-					continue
-				}
-				break
-			}
-			if _, err := p.expect(RPAREN); err != nil {
-				return nil, err
-			}
-		}
-		returnType, err := p.parseOptionalType() // func add(a, b): number { ... }
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(LBRACE); err != nil {
-			return nil, err
-		}
-		// a function body starts outside any loop, even if the func is written inside one
-		outerLoops := p.loopDepth
-		p.loopDepth = 0
-		body, err := p.parseBlock()
-		p.loopDepth = outerLoops
-		if err != nil {
-			return nil, err
-		}
-		return FuncStatement{Name: fname.Value, Params: params, ReturnType: returnType, Body: body, Line: line}, nil
+		return p.parseFunc(line)
 
 	case "import": // import "name"
 		path, err := p.expect(STRING)

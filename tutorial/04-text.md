@@ -2,6 +2,48 @@
 
 Text in GAN (programmers call it a **string**) is anything between double quotes.
 
+## Escapes: quotes, new lines and tabs
+
+A **backslash** followed by a character writes something that is hard to type directly. This is called
+an **escape**:
+
+| You write | The text gets |
+|---|---|
+| `\"` | a double quote |
+| `\n` | a new line |
+| `\t` | a tab |
+| `\\` | one backslash |
+
+```gan
+print("She said \"hello\"")
+print("one\ntwo")
+print("C:\\Desktop\\GAN")
+print(len("a\nb"))
+```
+
+```output
+She said "hello"
+one
+two
+C:\Desktop\GAN
+3
+```
+
+Each escape counts as **one** character. Because a backslash is special, write `\\` when you want a
+real one, as in a Windows path. Any other escape is a mistake that GAN reports before running:
+
+```gan
+print("bad \q escape")
+```
+
+```output
+Syntax error on line 1: unknown escape \q in text (you can use \" \\ \n \t)
+    1 | print("bad \q escape")
+```
+
+Escapes only work in text written in your program. Text that comes from `input()` or `ask()` is left
+exactly as it is.
+
 ## Joining text
 
 `+` joins pieces of text together:

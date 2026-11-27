@@ -1,0 +1,5 @@
+// Needs Python and NumPy installed on this computer.
+print(python("math.factorial", 5))
+print(python("string.capwords", "hello gan"))
+print(python("builtins.sorted", [3, 1, 2]))
+print(python("numpy.sort", tensor([3, 1, 2])))

@@ -13,7 +13,7 @@ A one-page reminder of everything GAN can do. For explanations, see the lessons.
 | Type | Examples | Notes |
 |---|---|---|
 | number | `5`, `3.14`, `-2` | all numbers are decimals; whole ones print without `.0` |
-| text | `"hello"` | double quotes only; no way to put a `"` inside; may span lines |
+| text | `"hello"` | double quotes; escapes `\"` `\\` `\n` `\t` (any other is an error); may span lines |
 | bool | `true`, `false` | |
 | list | `[1, "a", [2]]` | positions start at 0; shared, not copied |
 | tensor | `tensor([[1, 2], [3, 4]])` | grid of numbers for AI; never changes |
@@ -88,6 +88,18 @@ print(add(2, 3))
 - A function can read and change top-of-program variables; its own variables vanish when it ends.
 - A function with no `return` gives no value (using it as a value is an error).
 
+## Tools
+
+```gan
+tool add(a: number, b: number): number "Adds two numbers" {
+    return a + b
+}
+```
+
+A function with a description, for AI agents to use (agents are not built yet). Every parameter needs a type:
+`number`, `text`, `bool` or `list`; names must differ; the description is required. Your program calls it like
+a function. `tool` is only special before a name.
+
 ## Lists and text
 
 ```gan
@@ -154,6 +166,13 @@ Gradients work through `+` `-` `*` `/`, minus signs, `matmul`, `transpose`, `sum
 `tanh`, `exp` and `log`. Reading with `[ ]` gives an error on learnable calculations. On those, `sum` and `mean` give a one-number tensor such as `tensor(20)`.
 After changing a weight, wrap it again: `w = learnable(w - 0.05 * grad(w))`.
 
+## Python
+
+`python("module.function", arguments...)` calls any Python function and gives back its result. Needs Python
+installed (and NumPy for tensors). Numbers, text, true/false, lists and tensors travel both ways; no named
+arguments yet; no time limit. Learnable tensors are refused. **It has the full power of Python**, including
+deleting files and running commands: never let text you did not write choose what it runs.
+
 ## AI models
 
 | Code | Gives |
@@ -192,5 +211,5 @@ An error inside a library says `in name.gan` and shows that library's line.
 
 ## Not in GAN yet
 
-Dictionaries, `\n` and other escapes inside text, several things in one `print`, `+=`,
+Dictionaries, JSON, several things in one `print`, `+=`,
 one-line `if`, reading files, concurrency, gradients through `[ ]`.

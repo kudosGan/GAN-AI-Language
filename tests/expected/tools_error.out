@@ -1,0 +1,2 @@
+Syntax error on line 2: tool "add": parameter "a" needs a type, so a model knows what to send (number, text, bool or list)
+    2 | tool add(a, b: number) "Adds two numbers" {

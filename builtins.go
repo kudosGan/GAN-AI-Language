@@ -58,6 +58,11 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("len needs a list or text")
 	}},
 
+	// ---- Python (the code that does the work is in python.go) ----
+
+	// python("module.function", arguments...): call any Python function
+	"python": {1, -1, callPython},
+
 	// ---- AI models (the code that does the work is in ai.go) ----
 
 	// ask(question) or ask(question, model): the model's answer, as text
@@ -379,6 +384,9 @@ func (in *Interpreter) callBuiltin(call CallExpr, env *Environment) (Value, bool
 	}
 	n := len(call.Args)
 	if n < b.min || (b.max >= 0 && n > b.max) {
+		if b.max < 0 { // any number of arguments, but at least min
+			return nil, false, fmt.Errorf("function %q expects at least %s but got %d", call.Name, plural(b.min), n)
+		}
 		if b.min == b.max {
 			return nil, false, fmt.Errorf("function %q expects %s but got %d", call.Name, plural(b.min), n)
 		}

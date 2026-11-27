@@ -30,10 +30,12 @@ $examples = Join-Path $payload 'examples'
 New-Item -ItemType Directory -Force -Path $examples | Out-Null
 foreach ($n in 'hello', 'var', 'comments', 'math', 'parens', 'decimals', 'strings', 'if', 'elseif', 'logic',
                'while', 'for', 'func', 'scope', 'final', 'lists', 'builtins', 'types', 'imports',
-               'breaks', 'tensors', 'tensortools', 'autograd', 'gradients') {
+               'breaks', 'tensors', 'tensortools', 'autograd', 'gradients', 'escapes', 'tools') {
     $f = Join-Path $root "$n.gan"
     if (Test-Path $f) { Copy-Item $f $examples }
 }
+# python.gan needs Python and NumPy installed on the computer
+Copy-Item (Join-Path $root 'live\python.gan') $examples
 # ask.gan needs Ollama running on the computer
 Copy-Item (Join-Path $root 'live\ask.gan') $examples
 Copy-Item (Join-Path $root 'modules') (Join-Path $examples 'modules') -Recurse

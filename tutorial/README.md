@@ -22,6 +22,8 @@ what the earlier ones taught.
 | 14 | [Tensors](14-tensors.md) | `tensor`, `shape`, `sum`, `matmul`: the first step into AI |
 | 15 | [How a model learns](15-learning.md) | `learnable`, `backward`, `grad`, training a tiny model |
 | 16 | [Talking to a model](16-talking-to-a-model.md) | `ask`, using a local AI model with Ollama |
+| 17 | [Using Python](17-using-python.md) | `python`, calling Python and NumPy from GAN |
+| 18 | [Tools](18-tools.md) | `tool`, the first piece of AI agents |
 
 Also here:
 

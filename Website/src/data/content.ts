@@ -44,7 +44,9 @@ export const LESSONS = [
   "Projects",
   "Tensors",
   "How a model learns",
-  "Talking to a model"
+  "Talking to a model",
+  "Using Python",
+  "Tools"
 ];
 
 export const LIBRARIES = [

@@ -1,0 +1,4 @@
+print("start")
+tool add(a, b: number) "Adds two numbers" {
+    return a + b
+}

@@ -1,0 +1,2 @@
+Syntax error on line 2: unknown escape \q in text (you can use \" \\ \n \t)
+    2 | print("bad \q escape")

@@ -8,7 +8,7 @@ export default function Learn() {
     <div className="container page">
       <h1>Learn GAN</h1>
       <p>
-        {LESSONS.length} short lessons that start from nothing and go on to a model that learns and talking to an AI model.
+        {LESSONS.length} short lessons that start from nothing and go on to models that learn, AI models, Python and tools.
         Examples with fixed output are checked against the real GAN program.
       </p>
       <LessonList />

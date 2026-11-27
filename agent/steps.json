@@ -525,6 +525,62 @@
     ]
   },
   {
+    "step": "33",
+    "title": "Text escapes",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "Text can now contain double quotes, new lines, tabs and backslashes, written as \\\" \\n \\t and \\\\. JSON can be written directly in GAN code.",
+    "learned": [
+      "The lexer turns each escape into the real character, so the rest of GAN needed no change.",
+      "A backslash is now special in text written in code: a Windows path needs two of them.",
+      "An unknown escape is a syntax error, reported on the line where it is, so a typing mistake cannot pass silently.",
+      "Text from input() or ask() is never treated as escapes."
+    ],
+    "examples": [
+      "escapes.gan"
+    ],
+    "error_examples": [
+      "escapes_error.gan"
+    ]
+  },
+  {
+    "step": "34",
+    "title": "Using Python from GAN",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "python(\"module.function\", arguments) calls any Python function from GAN. Numbers, text, true/false, lists and tensors (as NumPy arrays) travel both ways. There is no list of allowed functions.",
+    "learned": [
+      "Go does not run Python inside itself: it starts a Python helper and the two send one line of JSON each way through pipes. The helper's code is built into gan.exe.",
+      "What Python code prints, and anything that tries to read input, is kept away from those pipes, so it cannot break the conversation.",
+      "The helper removes the current folder from Python's search path, so a stray json.py or numpy.py there is never run by accident.",
+      "With no allow-list, a GAN program has all of Python's power, so other people's programs should be read before they are run.",
+      "Learnable tensors are refused because their gradients would be lost."
+    ],
+    "examples": [],
+    "error_examples": [
+      "python_error.gan"
+    ]
+  },
+  {
+    "step": "35",
+    "title": "tool: the first piece of agents",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "tool name(a: number): text \"description\" { } declares a function that AI agents will be able to use. Every parameter needs a type and the description is required. Agents themselves are not built yet.",
+    "learned": [
+      "A tool is stored like a function with two extra facts: that it is a tool, and its description. So calling it needed no new code.",
+      "The checks happen in the parser, so a badly written tool is reported before the program runs.",
+      "Only number, text, bool and list are allowed for parameters, because those are what a model can send.",
+      "tool is only a special word when a name follows it, so programs with a variable called tool still work."
+    ],
+    "examples": [
+      "tools.gan"
+    ],
+    "error_examples": [
+      "tools_error.gan"
+    ]
+  },
+  {
     "step": "later",
     "title": "AI roadmap and other ideas",
     "status": "planned",

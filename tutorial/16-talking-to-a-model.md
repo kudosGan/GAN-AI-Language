@@ -69,17 +69,14 @@ Each `ask` starts fresh. To continue a conversation, put the earlier words into 
 var history = ""
 for turn in 1 to 3 {
     let you = input("You: ")
-    history = history + "User: " + you + "
-"
-    let reply = ask("Continue this conversation. Reply with only your next message.
-" + history)
+    history = history + "User: " + you + "\n"
+    let reply = ask("Continue this conversation. Reply with only your next message.\n" + history)
     print("Model: " + reply)
-    history = history + "You: " + reply + "
-"
+    history = history + "You: " + reply + "\n"
 }
 ```
 
-GAN text has no `\n` yet. A new line inside the quotes, as above, is how to put one in text.
+`\n` puts a new line in the text (Lesson 4).
 
 ## Important
 
@@ -115,4 +112,4 @@ happening, restart Ollama.
    the word really is in the answer.
 2. Write a function `translate(text, language)` that returns the model's translation.
 
-Back to the [course index](README.md)
+Next: [Lesson 17: Using Python from GAN](17-using-python.md)

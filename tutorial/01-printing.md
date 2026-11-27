@@ -84,7 +84,17 @@ two
 three
 ```
 
-There is no way to put a double quote **inside** text yet, because a quote always ends the text.
+A quote normally ends the text. To put a double quote **inside** text, write `\"`:
+
+```gan
+print("She said \"hello\"")
+```
+
+```output
+She said "hello"
+```
+
+Lesson 4 shows more of these.
 
 ## Common mistakes
 

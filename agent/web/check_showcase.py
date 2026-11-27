@@ -27,7 +27,8 @@ def main():
     with tempfile.TemporaryDirectory() as folder:
         for name, code, expected in samples:
             program = Path(folder) / name
-            program.write_text(code + "\n", encoding="utf-8")
+            # inside a TypeScript `text`, two backslashes stand for one
+            program.write_text(code.replace("\\\\", "\\") + "\n", encoding="utf-8")
             done = subprocess.run([str(ROOT / "gan.exe"), str(program)], capture_output=True,
                                   text=True, encoding="utf-8", timeout=30)
             actual = (done.stdout + done.stderr).replace("\r\n", "\n").rstrip("\n")

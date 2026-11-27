@@ -3,7 +3,7 @@
 ## About
 GAN is my own programming language (file extension .gan), written in Go. It is named after generative adversarial networks; the goal is a language designed for AI and agentic AI. Current version: beta (no version number; do not change it unless I ask). Folder: C:\Desktop\GAN. Go 1.27 on Windows, module `mylang`.
 Build: `go build -o gan.exe .`   Run: `gan file.gan`   Version: `gan --version` (GAN beta)
-Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; builtins.go, modules.go, errors.go, tensor.go, autograd.go, ai.go; main.go ties them together).
+Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; builtins.go, modules.go, errors.go, tensor.go, autograd.go, ai.go, python.go; main.go ties them together).
 
 ## How I want you to work
 - I'm a beginner in Go and in language design. Go one step at a time.
@@ -14,16 +14,19 @@ Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; b
 - After each step works, wait for me to say "next".
 (For steps 15 to 26 I allowed continuing without stopping. Normal rules apply again from here.)
 
-## Progress: steps 1 to 32 are done
+## Progress: steps 1 to 35 are done
 1-6 lexer/parser/print, 7 interpreter, 8 variables, 9 math+precedence, 10 comparisons+if/else, 11 while+assignment,
 12 functions, 13 error messages with line numbers, 14 parentheses+negative numbers, 15 comments (//), 16 decimals,
 17 joining text with +, 18 true/false + and/or/not + else if, 19 scope + final/var, 20 for loops (for i in 1 to 5),
 21 lists, 22 built-in functions, 23 import + libraries (math, text, lists) + % + fail(), 24 optional types (let x: number),
 25 Windows installer (installer\GAN-Setup.exe), 26 tutorial (tutorial\), 27 break/continue, 28 tensors, 29 random/transpose/indexing/network maths,
 30 first automatic gradients.
-31 gradients for / relu sigmoid tanh exp log transpose, 32 ask() for local Ollama models. 17 lessons (0-16).
-Next (only after I say next/go): Step 33 text escapes; then dictionaries + JSON, tools and error handling, an agent loop
-with limits and permissions. Later: train XOR (a scratch trial worked), a tiny GAN network, speed.
+31 gradients for / relu sigmoid tanh exp log transpose, 32 ask() for local Ollama models, 33 text escapes,
+34 python() bridge (any Python function, no allow-list), 35 tool declarations. Lessons 0-18.
+Next (only after I say next/go): Step 36 agent + .do() loop (design in design\agents.md, accepted: words tool/agent/.do,
+description after the signature, default 10 steps; the model can run only listed tools). Step 37 agent log.
+Later: dictionaries + JSON, train XOR (a scratch trial worked), a tiny GAN network, speed.
+Direction: a mix of the best of Go, Python and C#, AI first, no censorship or guardrails on what the programmer can do.
 
 ## The language today
 - Values: number (float64), text, bool, list, tensor, module. Blocks use { }. Comments use //.
@@ -34,13 +37,15 @@ with limits and permissions. Later: train XOR (a scratch trial worked), a tiny G
 - AI built-ins: tensor shape sum mean matmul transpose zeros ones random randomNormal seed relu sigmoid tanh exp log.
 - Gradients: learnable backward grad item (through + - * / minus matmul transpose sum mean relu sigmoid tanh exp log; [ ] refuses).
 - AI models: ask(question) / ask(question, model) calls Ollama on this computer only (ai.go).
-- Also run `go test` (gradients checked numerically; ask checked with a fake server). live\ask.gan needs Ollama.
+- Also run `go test` (gradients, ask with a fake server, python bridge, tool rules). live\*.gan need Ollama or Python.
+- Text escapes: \" \\ \n \t. python("module.function", args) needs Python (python.go + pybridge.py).
+- tool name(a: number): text "description" { } : every parameter typed (number/text/bool/list).
 - Libraries in libs\ (written in GAN): math, text, lists. A path import ("modules/x.gan") is relative to the importing file.
 - Errors: "Syntax error on line N" / "Runtime error on line N" plus the source line; errors in imported files name the file.
 - Scope: each block and each function call has its own scope; functions can see their module's globals. Lists are shared, not copied.
 
 ## Project layout
-- main.go lexer.go parser.go interpreter.go builtins.go modules.go errors.go tensor.go autograd.go ai.go: the language
+- main.go lexer.go parser.go interpreter.go builtins.go modules.go errors.go tensor.go autograd.go ai.go python.go pybridge.py: the language
 - Website\: React site published with GitHub Pages; agent\web\: the five website agents
 - libs\*.gan standard libraries; modules\*.gan helper files used by tests
 - *.gan in the root: examples and tests (names ending in _error are meant to fail)
@@ -51,7 +56,6 @@ with limits and permissions. Later: train XOR (a scratch trial worked), a tiny G
 - vscode-gan\: the "Seti + GAN" VS Code icon theme; gan-icon.svg/.ico: the logo.
 
 ## Things worth remembering
-- Strings have no escape sequences and cannot contain a double quote.
 - Functions must be defined before the call runs.
 - input() echoes the line when stdin is piped, so recorded runs read like real ones.
 - Tests print the same thing every time, so the regression runner compares full output.
@@ -132,6 +136,11 @@ func main() {
 ```go
 package main
 
+import (
+	"strings"
+	"unicode/utf8"
+)
+
 type TokenType string
 
 const (
@@ -171,6 +180,55 @@ type Token struct {
 
 // unterminatedString is the Value of the ILLEGAL token made for a string with no closing quote.
 const unterminatedString = "unterminated string"
+
+// badEscape starts the Value of the ILLEGAL token made for a wrong escape such as \q.
+// The whole Value is the error message.
+const badEscape = "unknown escape"
+
+// escapes are the characters that may follow a backslash inside text, and what each one means.
+var escapes = map[byte]byte{
+	'"':  '"',  // \"  a double quote
+	'\\': '\\', // \\  one backslash
+	'n':  '\n', // \n  a new line
+	't':  '\t', // \t  a tab
+}
+
+// lexString reads text that starts with the " at src[i]. It returns the text with its escapes
+// turned into real characters, the position after the closing quote, and how many lines the
+// text went down. problem is "" when all is well; otherwise it says what is wrong, and
+// problemLines says how many lines down from the opening quote the mistake is.
+func lexString(src string, i int) (text string, next, lines int, problem string, problemLines int) {
+	var out strings.Builder
+	for i++; i < len(src); i++ {
+		c := src[i]
+		switch {
+		case c == '"': // the closing quote
+			return out.String(), i + 1, lines, problem, problemLines
+		case c == '\\' && i+1 < len(src):
+			meaning, known := escapes[src[i+1]]
+			if !known {
+				if problem == "" { // report the first mistake, but keep reading to the closing quote
+					after, _ := utf8.DecodeRuneInString(src[i+1:])
+					shown := " \\" + string(after)
+					if after == '\n' || after == '\r' {
+						shown = ": a backslash at the end of a line"
+					}
+					problem = badEscape + shown + ` in text (you can use \" \\ \n \t)`
+					problemLines = lines
+				}
+				continue // the next character is read normally, so lines are still counted
+			}
+			out.WriteByte(meaning)
+			i++ // the character after the backslash is used up too
+		default:
+			if c == '\n' {
+				lines++
+			}
+			out.WriteByte(c)
+		}
+	}
+	return "", len(src), lines, unterminatedString, 0
+}
 
 func isLetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
@@ -269,19 +327,16 @@ func Lex(src string) []Token {
 			i++
 		case c == '"':
 			startLine := line // a string is reported on the line where it starts
-			start := i + 1
-			i++
-			for i < len(src) && src[i] != '"' {
-				if src[i] == '\n' {
-					line++
-				}
-				i++
-			}
-			if i >= len(src) {
-				tokens = append(tokens, Token{ILLEGAL, unterminatedString, startLine})
-			} else {
-				tokens = append(tokens, Token{STRING, src[start:i], startLine})
-				i++
+			text, next, lines, problem, problemLines := lexString(src, i)
+			i = next
+			line += lines
+			switch problem {
+			case "":
+				tokens = append(tokens, Token{STRING, text, startLine})
+			case unterminatedString:
+				tokens = append(tokens, Token{ILLEGAL, problem, startLine})
+			default: // a wrong escape is reported on the line where it is
+				tokens = append(tokens, Token{ILLEGAL, problem, startLine + problemLines})
 			}
 		case isLetter(c):
 			start := i
@@ -316,8 +371,10 @@ func Lex(src string) []Token {
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // ---- Expressions: things that produce a value ----
@@ -446,6 +503,10 @@ type FuncStatement struct {
 	ReturnType string // the type written after the ) , or "" if none
 	Body       []Statement
 	Line       int
+
+	// A tool is a function that an AI model will be able to use (see parseTool).
+	IsTool      bool
+	Description string // tools only: tells a model what the tool does
 }
 
 // Param is one parameter of a function, with an optional type.
@@ -549,6 +610,9 @@ func (p *Parser) unexpected(tok *Token, wanted string) error {
 	if tok.Type == ILLEGAL || tok.Type == DOT {
 		if tok.Value == unterminatedString {
 			return at(tok.Line, fmt.Errorf("unterminated string (a string needs a closing \")"))
+		}
+		if strings.HasPrefix(tok.Value, badEscape) {
+			return at(tok.Line, errors.New(tok.Value)) // the lexer already wrote the message
 		}
 		return at(tok.Line, fmt.Errorf("unexpected character %q", tok.Value))
 	}
@@ -876,6 +940,119 @@ func (p *Parser) parseBlock() ([]Statement, error) {
 	}
 }
 
+// parseFunc reads the rest of a function, after the word func (or tool):
+// name(a: number, b): number { ... }
+func (p *Parser) parseFunc(line int) (Statement, error) {
+	fn, err := p.parseHeader(line)
+	if err != nil {
+		return nil, err
+	}
+	return p.parseBody(fn)
+}
+
+// parseHeader reads the name, the parameters and the return type.
+func (p *Parser) parseHeader(line int) (FuncStatement, error) {
+	none := FuncStatement{}
+	fname, err := p.expect(IDENT)
+	if err != nil {
+		return none, err
+	}
+	if _, err := p.expect(LPAREN); err != nil {
+		return none, err
+	}
+	var params []Param
+	if tok := p.peek(); tok != nil && tok.Type == RPAREN { // no parameters
+		p.pos++
+	} else {
+		for {
+			param, err := p.expect(IDENT)
+			if err != nil {
+				return none, err
+			}
+			paramType, err := p.parseOptionalType()
+			if err != nil {
+				return none, err
+			}
+			params = append(params, Param{Name: param.Value, Type: paramType})
+			if tok := p.peek(); tok != nil && tok.Type == COMMA {
+				p.pos++
+				continue
+			}
+			break
+		}
+		if _, err := p.expect(RPAREN); err != nil {
+			return none, err
+		}
+	}
+	returnType, err := p.parseOptionalType() // func add(a, b): number { ... }
+	if err != nil {
+		return none, err
+	}
+	return FuncStatement{Name: fname.Value, Params: params, ReturnType: returnType, Line: line}, nil
+}
+
+// parseBody reads the { ... } of a function.
+func (p *Parser) parseBody(fn FuncStatement) (Statement, error) {
+	if _, err := p.expect(LBRACE); err != nil {
+		return nil, err
+	}
+	// a function body starts outside any loop, even if the func is written inside one
+	outerLoops := p.loopDepth
+	p.loopDepth = 0
+	body, err := p.parseBlock()
+	p.loopDepth = outerLoops
+	if err != nil {
+		return nil, err
+	}
+	fn.Body = body
+	return fn, nil
+}
+
+// toolTypes are the types a tool's parameters may have: the ones an AI model can send.
+var toolTypes = map[string]bool{"number": true, "text": true, "bool": true, "list": true}
+
+// parseTool reads a tool: a function an AI model will be able to use.
+//
+//	tool add(a: number, b: number): number "Adds two numbers" { ... }
+//
+// So that a model can be told how to use it, every parameter needs a type and the tool needs
+// a description. These are checked here, before the program runs.
+func (p *Parser) parseTool(line int) (Statement, error) {
+	fn, err := p.parseHeader(line)
+	if err != nil {
+		return nil, err
+	}
+	wrong := func(format string, args ...any) error {
+		return at(line, fmt.Errorf("tool %q"+format, append([]any{fn.Name}, args...)...))
+	}
+	seen := map[string]bool{}
+	for _, param := range fn.Params {
+		if param.Type == "" {
+			return nil, wrong(": parameter %q needs a type, so a model knows what to send (number, text, bool or list)", param.Name)
+		}
+		if !toolTypes[param.Type] {
+			return nil, wrong(": parameter %q cannot be %s; a model can send number, text, bool or list", param.Name, param.Type)
+		}
+		if seen[param.Name] { // a model names each value it sends, so names must be different
+			return nil, wrong(" has two parameters named %q", param.Name)
+		}
+		seen[param.Name] = true
+	}
+	description := p.peek()
+	if description != nil && description.Type == ILLEGAL {
+		return nil, p.unexpected(description, "a description") // e.g. a missing closing quote
+	}
+	if description == nil || description.Type != STRING {
+		return nil, wrong(" needs a description in quotes before the {, to tell a model what it does")
+	}
+	p.pos++
+	if strings.TrimSpace(description.Value) == "" {
+		return nil, wrong(" has an empty description")
+	}
+	fn.IsTool, fn.Description = true, description.Value
+	return p.parseBody(fn)
+}
+
 // parseStatement reads one command: print, let, if, while, func, return, an assignment or a call.
 func (p *Parser) parseStatement() (Statement, error) {
 	name, err := p.expect(IDENT)
@@ -883,6 +1060,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 		return nil, err
 	}
 	line := name.Line // the statement is on the line where its first word is
+
+	// "tool" starts a tool only when a name follows it, so a variable called tool still works
+	if next := p.peek(); name.Value == "tool" && next != nil && next.Type == IDENT {
+		return p.parseTool(line)
+	}
 
 	switch name.Value {
 	case "print": // print(value)
@@ -999,53 +1181,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 		return ForStatement{Var: loopVar.Value, From: first, To: last, Body: body, Line: line}, nil
 
 	case "func": // func name(a, b) { ... }   (types are optional: func add(a: number): number { ... })
-		fname, err := p.expect(IDENT)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(LPAREN); err != nil {
-			return nil, err
-		}
-		var params []Param
-		if tok := p.peek(); tok != nil && tok.Type == RPAREN { // no parameters
-			p.pos++
-		} else {
-			for {
-				param, err := p.expect(IDENT)
-				if err != nil {
-					return nil, err
-				}
-				paramType, err := p.parseOptionalType()
-				if err != nil {
-					return nil, err
-				}
-				params = append(params, Param{Name: param.Value, Type: paramType})
-				if tok := p.peek(); tok != nil && tok.Type == COMMA {
-					p.pos++
-					continue
-				}
-				break
-			}
-			if _, err := p.expect(RPAREN); err != nil {
-				return nil, err
-			}
-		}
-		returnType, err := p.parseOptionalType() // func add(a, b): number { ... }
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(LBRACE); err != nil {
-			return nil, err
-		}
-		// a function body starts outside any loop, even if the func is written inside one
-		outerLoops := p.loopDepth
-		p.loopDepth = 0
-		body, err := p.parseBlock()
-		p.loopDepth = outerLoops
-		if err != nil {
-			return nil, err
-		}
-		return FuncStatement{Name: fname.Value, Params: params, ReturnType: returnType, Body: body, Line: line}, nil
+		return p.parseFunc(line)
 
 	case "import": // import "name"
 		path, err := p.expect(STRING)
@@ -1940,6 +2076,11 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("len needs a list or text")
 	}},
 
+	// ---- Python (the code that does the work is in python.go) ----
+
+	// python("module.function", arguments...): call any Python function
+	"python": {1, -1, callPython},
+
 	// ---- AI models (the code that does the work is in ai.go) ----
 
 	// ask(question) or ask(question, model): the model's answer, as text
@@ -2261,6 +2402,9 @@ func (in *Interpreter) callBuiltin(call CallExpr, env *Environment) (Value, bool
 	}
 	n := len(call.Args)
 	if n < b.min || (b.max >= 0 && n > b.max) {
+		if b.max < 0 { // any number of arguments, but at least min
+			return nil, false, fmt.Errorf("function %q expects at least %s but got %d", call.Name, plural(b.min), n)
+		}
 		if b.min == b.max {
 			return nil, false, fmt.Errorf("function %q expects %s but got %d", call.Name, plural(b.min), n)
 		}
@@ -3212,4 +3356,427 @@ func askArgument(v Value, what string) (string, error) {
 	}
 	return s, nil
 }
+```
+
+## python.go
+```go
+package main
+
+// python("module.function", arguments...) calls a function in Python from a GAN program.
+//
+// GAN starts a small Python helper (pybridge.py, which is built into gan.exe) the first time
+// it is needed, and then talks to it through pipes, one JSON line per message.
+//
+// It has NO list of allowed functions. A GAN program that uses python() can do anything a
+// Python program can do with your account, including deleting files and running commands.
+// Read other people's programs before you run them.
+
+import (
+	"bufio"
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+)
+
+//go:embed pybridge.py
+var pybridgeSource string
+
+// pyValue is a GAN value on its way to or from Python. Numbers travel as text, so that
+// "infinity" and "not a number" survive (plain JSON cannot hold them).
+type pyValue struct {
+	Type  string     `json:"type"`
+	Value any        `json:"value,omitempty"`
+	Items []*pyValue `json:"items,omitempty"`
+	Shape []int      `json:"shape,omitempty"`
+	Data  []string   `json:"data,omitempty"`
+}
+
+type pyReply struct {
+	Ready bool     `json:"ready"`
+	OK    bool     `json:"ok"`
+	Value *pyValue `json:"value"`
+	Error string   `json:"error"`
+}
+
+// pyHelper is the running Python process.
+type pyHelper struct {
+	cmd *exec.Cmd
+	in  io.WriteCloser
+	out *bufio.Reader
+}
+
+// helper is nil until python() is used for the first time.
+var helper *pyHelper
+
+const maxPyDepth = 100 // lists inside lists (also catches a list that contains itself)
+
+// startPython finds Python and starts the helper.
+func startPython() (*pyHelper, error) {
+	notStarted := fmt.Errorf("python could not start Python; check that Python is installed and that \"python --version\" works")
+	for _, name := range []string{"python", "python3"} {
+		path, err := exec.LookPath(name) // never picks up a program from the current folder
+		if err != nil {
+			continue
+		}
+		cmd := exec.Command(path, "-u", "-c", pybridgeSource)
+		cmd.Env = append(os.Environ(), "PYTHONUTF8=1", "PYTHONIOENCODING=utf-8")
+		cmd.Stderr = os.Stdout // what Python code prints shows up with GAN's own output
+		in, err := cmd.StdinPipe()
+		if err != nil {
+			return nil, notStarted
+		}
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, notStarted
+		}
+		if err := cmd.Start(); err != nil {
+			continue
+		}
+		h := &pyHelper{cmd: cmd, in: in, out: bufio.NewReader(out)}
+		if reply, err := h.read(); err == nil && reply.Ready {
+			return h, nil
+		}
+		h.stop()
+	}
+	return nil, notStarted
+}
+
+func (h *pyHelper) read() (*pyReply, error) {
+	line, err := h.out.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+	var reply pyReply
+	if err := json.Unmarshal([]byte(line), &reply); err != nil {
+		return nil, err
+	}
+	return &reply, nil
+}
+
+func (h *pyHelper) stop() {
+	h.in.Close()
+	h.cmd.Process.Kill()
+	h.cmd.Wait()
+}
+
+// toPython turns a GAN value into the form that is sent to Python.
+func toPython(v Value, depth int) (*pyValue, error) {
+	if depth > maxPyDepth {
+		return nil, fmt.Errorf("python cannot take lists nested this deeply (does a list contain itself?)")
+	}
+	number := func(x float64) string { return strconv.FormatFloat(x, 'g', -1, 64) }
+	switch x := v.(type) {
+	case float64:
+		return &pyValue{Type: "number", Value: number(x)}, nil
+	case string:
+		return &pyValue{Type: "text", Value: x}, nil
+	case bool:
+		return &pyValue{Type: "bool", Value: x}, nil
+	case *List:
+		out := &pyValue{Type: "list", Items: []*pyValue{}}
+		for _, item := range x.Items {
+			p, err := toPython(item, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			out.Items = append(out.Items, p)
+		}
+		return out, nil
+	case *Tensor:
+		if x.tracked() { // not a restriction on power: the answer would be silently wrong
+			return nil, fmt.Errorf("python cannot take a learnable tensor, because its gradients would be lost")
+		}
+		out := &pyValue{Type: "tensor", Shape: x.Shape, Data: make([]string, len(x.Data))}
+		for i, n := range x.Data {
+			out.Data[i] = number(n)
+		}
+		return out, nil
+	}
+	return nil, fmt.Errorf("python cannot take a %s", typeName(v))
+}
+
+// MarshalJSON keeps the parts that matter even when they are "empty": the text "",
+// false, and an empty list must still be sent.
+func (p *pyValue) MarshalJSON() ([]byte, error) {
+	out := map[string]any{"type": p.Type}
+	switch p.Type {
+	case "list":
+		out["items"] = p.Items
+	case "tensor":
+		out["shape"] = append([]int{}, p.Shape...)
+		out["data"] = p.Data
+	default:
+		out["value"] = p.Value
+	}
+	return json.Marshal(out)
+}
+
+// fromPython turns a reply back into a GAN value.
+func fromPython(p *pyValue) (Value, error) {
+	broken := fmt.Errorf("python got a reply it could not read")
+	switch p.Type {
+	case "number":
+		s, ok := p.Value.(string)
+		if !ok {
+			return nil, broken
+		}
+		x, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return nil, broken
+		}
+		return x, nil
+	case "text":
+		if p.Value == nil { // the empty text
+			return "", nil
+		}
+		s, ok := p.Value.(string)
+		if !ok {
+			return nil, broken
+		}
+		return s, nil
+	case "bool":
+		b, _ := p.Value.(bool)
+		return b, nil
+	case "list":
+		list := &List{Items: []Value{}}
+		for _, item := range p.Items {
+			v, err := fromPython(item)
+			if err != nil {
+				return nil, err
+			}
+			list.Items = append(list.Items, v)
+		}
+		return list, nil
+	case "tensor":
+		t := &Tensor{Shape: append([]int{}, p.Shape...), Data: make([]float64, len(p.Data))}
+		size := 1
+		for _, n := range t.Shape {
+			size *= n
+		}
+		if len(t.Shape) == 0 || size != len(t.Data) {
+			return nil, broken
+		}
+		for i, s := range p.Data {
+			x, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				return nil, broken
+			}
+			t.Data[i] = x
+		}
+		return t, nil
+	}
+	return nil, broken
+}
+
+// callPython is the built-in function python(name, arguments...).
+// The second result is false when the Python function gave nothing back (None).
+func callPython(args []Value) (Value, bool, error) {
+	name, ok := args[0].(string)
+	if !ok {
+		return nil, false, fmt.Errorf("python needs the name of a Python function as text, but got %s", typeName(args[0]))
+	}
+	parts := strings.Split(name, ".")
+	if len(parts) < 2 || strings.Contains("."+name+".", "..") {
+		return nil, false, fmt.Errorf("python needs a full name such as \"math.sqrt\", but got %q", name)
+	}
+	sent := []*pyValue{}
+	for _, a := range args[1:] {
+		p, err := toPython(a, 0)
+		if err != nil {
+			return nil, false, err
+		}
+		sent = append(sent, p)
+	}
+	request, err := json.Marshal(map[string]any{"function": name, "args": sent})
+	if err != nil {
+		return nil, false, fmt.Errorf("python could not prepare the request")
+	}
+
+	if helper == nil {
+		if helper, err = startPython(); err != nil {
+			return nil, false, err
+		}
+	}
+	// there is no time limit: a long calculation is allowed (Ctrl+C stops the program)
+	_, writeErr := helper.in.Write(append(request, '\n'))
+	var reply *pyReply
+	if writeErr == nil {
+		reply, err = helper.read()
+	}
+	if writeErr != nil || err != nil {
+		helper.stop()
+		helper = nil // the next call starts a new one
+		return nil, false, fmt.Errorf("python stopped unexpectedly while running %s", name)
+	}
+	if !reply.OK {
+		return nil, false, fmt.Errorf("%s", reply.Error)
+	}
+	if reply.Value == nil {
+		return nil, false, nil
+	}
+	v, err := fromPython(reply.Value)
+	if err != nil {
+		return nil, false, err
+	}
+	return v, true, nil
+}
+```
+
+## pybridge.py
+```python
+# The Python helper of GAN's python(...) function. It is built into gan.exe (see python.go).
+#
+# GAN starts it once, then sends one request per line and reads one reply per line (JSON).
+#
+# It can call ANY function in Python's modules, with the same power as any Python program.
+import sys
+
+# Python normally looks for modules in the current folder first. Take that out BEFORE the
+# first import, so a stray file such as json.py or numpy.py in the folder is never run by
+# mistake.
+sys.path = [p for p in sys.path if p not in ("", ".")]
+
+import importlib
+import json
+import math
+import numbers
+import os
+
+# Keep the two pipes to GAN for ourselves. After this, anything that Python code prints
+# appears on the screen, and code that tries to read input gets nothing, so neither can
+# break the conversation with GAN.
+from_gan = os.fdopen(os.dup(0), "r", encoding="utf-8", newline="\n")
+to_gan = os.fdopen(os.dup(1), "w", encoding="utf-8", newline="\n")
+nothing = os.open(os.devnull, os.O_RDONLY)
+os.dup2(nothing, 0)
+os.dup2(2, 1)
+sys.stdin = open(os.devnull, "r")
+sys.stdout = sys.stderr
+
+MAX_DEPTH = 100             # lists inside lists
+MAX_ELEMENTS = 10_000_000   # the same limit GAN has for tensors
+
+
+class Problem(Exception):
+    """A mistake to report to the GAN program, already in plain words."""
+
+
+def load_numpy():
+    try:
+        return importlib.import_module("numpy")
+    except ImportError:
+        raise Problem("sending a tensor to Python needs NumPy, and Python could not load it")
+
+
+def from_value(v):
+    """A GAN value (as sent by GAN) -> a Python value."""
+    kind = v["type"]
+    if kind == "number":
+        x = float(v["value"])
+        # whole numbers arrive as Python integers, because many functions insist on that
+        return int(x) if x.is_integer() and abs(x) <= 2 ** 53 else x
+    if kind in ("text", "bool"):
+        return v["value"]
+    if kind == "list":
+        return [from_value(item) for item in v["items"]]
+    numpy = load_numpy()
+    return numpy.array([float(x) for x in v["data"]], dtype=float).reshape(v["shape"])
+
+
+def number(x):
+    try:
+        return {"type": "number", "value": repr(float(x))}
+    except OverflowError:
+        raise Problem("Python returned a number that is too big for GAN")
+
+
+def to_value(x, depth=0):
+    """A Python result -> a GAN value. None means "no value"."""
+    if depth > MAX_DEPTH:
+        raise Problem("Python returned lists nested too deeply for GAN")
+    numpy = sys.modules.get("numpy")
+    if numpy is not None:
+        if isinstance(x, numpy.ndarray):
+            if x.dtype.kind not in "biuf":
+                raise Problem("Python returned a NumPy array of " + str(x.dtype) + ", but GAN tensors only hold numbers")
+            if x.ndim == 0:
+                return to_value(x.item(), depth)
+            if x.size == 0:
+                raise Problem("Python returned an empty array, and a GAN tensor cannot be empty")
+            if x.size > MAX_ELEMENTS or x.ndim > 32:
+                raise Problem("Python returned an array that is too big for a GAN tensor")
+            return {"type": "tensor", "shape": list(x.shape), "data": [repr(float(n)) for n in x.ravel().tolist()]}
+        if isinstance(x, numpy.generic):
+            x = x.item()
+    if isinstance(x, bool):
+        return {"type": "bool", "value": x}
+    if isinstance(x, numbers.Real):
+        return number(x)
+    if isinstance(x, str):
+        return {"type": "text", "value": x}
+    if isinstance(x, (list, tuple)):
+        items = [to_value(item, depth + 1) for item in x]
+        if any(item is None for item in items):
+            raise Problem("Python returned a list with None in it, which GAN cannot use yet")
+        return {"type": "list", "items": items}
+    if x is None:
+        return None
+    raise Problem("Python returned a " + type(x).__name__ + ", which GAN cannot use yet")
+
+
+def find_function(name):
+    """ "numpy.linalg.inv" -> import numpy.linalg and fetch inv. """
+    parts = name.split(".")
+    for split in range(len(parts) - 1, 0, -1):
+        module_name = ".".join(parts[:split])
+        try:
+            found = importlib.import_module(module_name)
+        except ModuleNotFoundError as err:
+            # "not found" for this name (or a parent of it): try a shorter module name
+            if err.name and (module_name == err.name or module_name.startswith(err.name + ".")):
+                continue
+            raise  # the module exists, but something IT needs is missing
+        for part in parts[split:]:
+            if not hasattr(found, part):
+                raise Problem('Python has no function "' + name + '"')
+            found = getattr(found, part)
+        if not callable(found):
+            raise Problem('"' + name + '" in Python is not a function')
+        return found
+    raise Problem('Python has no module "' + parts[0] + '"; is it installed?')
+
+
+def handle(request):
+    name = request["function"]
+    try:
+        function = find_function(name)
+        result = function(*[from_value(a) for a in request["args"]])
+        return {"ok": True, "value": to_value(result)}
+    except Problem as err:
+        return {"ok": False, "error": str(err)}
+    except KeyboardInterrupt:
+        raise
+    except BaseException as err:  # includes sys.exit(), which must not end the helper silently
+        message = " ".join(str(err).split())  # one line
+        return {"ok": False, "error": "Python error in " + name + ": " + type(err).__name__ + (": " + message if message else "")}
+
+
+def send(reply):
+    to_gan.write(json.dumps(reply, allow_nan=False) + "\n")
+    to_gan.flush()
+
+
+send({"ready": True})
+for line in from_gan:
+    reply = handle(json.loads(line))
+    try:
+        sys.stderr.flush()  # so that what Python printed appears before GAN carries on
+    except Exception:
+        pass
+    send(reply)
 ```

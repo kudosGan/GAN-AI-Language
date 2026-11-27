@@ -11,8 +11,39 @@ export const SHOWCASE_INTRO =
 // check script does not compare its output; the page labels it as an example answer.
 export const SHOWCASE = [
   {
+    title: "Tools: the first piece of AI agents",
+    text: "A tool is a function with a description and typed inputs, so that an AI model can later be told how to use it. Agents are not built yet: today your own program calls the tool.",
+    file: "tools.gan",
+    code: `tool add(a: number, b: number): number "Adds two numbers" {
+    return a + b
+}
+
+print(add(12, 30))`,
+    output: `42`,
+  },
+  {
+    title: "Use Python from GAN",
+    text: "python() calls functions from your installed Python, including libraries such as NumPy. It has Python's full power, including deleting files and running commands, so read other people's programs before you run them.",
+    file: "python.gan",
+    code: `print(python("math.factorial", 5))
+print(python("string.capwords", "hello gan"))
+print(python("builtins.sorted", [3, 1, 2]))`,
+    output: `120
+Hello Gan
+[1, 2, 3]`,
+  },
+  {
+    title: "Quotes and new lines in text",
+    text: "Text escapes make it easy to write quotes, new lines, tabs and JSON.",
+    file: "escapes.gan",
+    code: `print("She said \\"hello\\"")
+print("{\\"tool\\": \\"add\\"}")`,
+    output: `She said "hello"
+{"tool": "add"}`,
+  },
+  {
     title: "Talk to an AI model",
-    text: "New: ask() sends a question to a model running on your own computer (with the free program Ollama) and gives back the answer as text. This is a first step towards AI agents.",
+    text: "ask() sends a question to a model running on your own computer (with the free program Ollama) and gives back the answer as text. This is a first step towards AI agents.",
     file: "ask.gan",
     code: `let topic = "loops"
 let answer = ask("Explain " + topic + " in programming in one short sentence.")
@@ -67,6 +98,6 @@ print(matmul(x, w))`,
 
 // Said plainly, so nobody expects more than the beta can do.
 export const BETA_NOTE =
-  "This is an early beta. GAN is not an AI agent language yet: ask() sends one question and gets one text answer. " +
-  "It needs Ollama and a downloaded model. Tensors run on the CPU, gradients work through + - * / matmul " +
+  "This is an early beta. GAN cannot run AI agents yet: tools can be written, but a model cannot use them so far. " +
+  "ask() needs Ollama and a downloaded model, and python() needs Python. Tensors run on the CPU, gradients work through + - * / matmul " +
   "transpose sum mean relu sigmoid tanh exp log (not [ ]), and GAN is not ready for large AI models.";

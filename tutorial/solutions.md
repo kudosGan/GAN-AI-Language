@@ -896,6 +896,56 @@ for round in 1 to 3 {
 101.25
 ```
 
+## Lesson 18: Tools
+
+**1.**
+
+```gan
+tool area(width: number, height: number): number "The area of a rectangle" {
+    return width * height
+}
+print(area(4, 5))
+```
+
+```output
+20
+```
+
+**2.**
+
+```gan
+tool shout(words: text) "Prints words in capital letters" {
+    print(upper(words))
+}
+shout("hello")
+```
+
+```output
+HELLO
+```
+
+## Lesson 17: Using Python from GAN
+
+**1.**
+
+```gan
+print(python("math.gcd", 48, 18))
+```
+
+```output
+6
+```
+
+**2.**
+
+```gan
+print(python("builtins.sum", [10, 20, 30]))
+```
+
+```output
+60
+```
+
 ## Lesson 16: Talking to a model
 
 These need Ollama, and answers differ, so no output is shown.

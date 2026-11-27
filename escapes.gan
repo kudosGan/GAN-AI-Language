@@ -1,0 +1,10 @@
+// A backslash inside text writes things that are hard to type.
+print("She said \"hello\"")
+print("one\ntwo")
+print("name:\tGAN")
+print("C:\\Desktop\\GAN")
+print(len("a\nb"))        // a new line counts as one character
+
+// JSON uses many double quotes
+let request = "{\"tool\": \"add\", \"numbers\": [2, 3]}"
+print(request)

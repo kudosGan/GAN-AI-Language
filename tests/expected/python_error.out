@@ -1,0 +1,2 @@
+Runtime error on line 1: Python has no function "math.no_such_function"
+    1 | print(python("math.no_such_function", 1))

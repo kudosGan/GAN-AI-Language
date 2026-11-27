@@ -1,0 +1,17 @@
+// A tool is a function with a description. AI agents will be able to use tools.
+// Every parameter needs a type.
+tool add(a: number, b: number): number "Adds two numbers" {
+    return a + b
+}
+
+tool greet(name: text) "Prints a greeting" {
+    print("Hello, " + name)
+}
+
+// your own program can call a tool like any function
+print(add(12, 30))
+greet("GAN")
+
+// "tool" is only special before a name, so it still works as a variable
+let tool = "hammer"
+print(tool)
