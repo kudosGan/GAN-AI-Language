@@ -70,7 +70,7 @@ def run():
     out = ["// All the words and lists shown on the site. WRITTEN BY the content-writer agent:",
            "// facts come from the real GAN files, wording from the AI. Edit by hand if you like.", ""]
     out.append(f'export const REPO_URL = {json.dumps(old_value("REPO_URL", "https://github.com/YOUR-NAME/GAN"))};')
-    out.append(f'export const VERSION = {json.dumps(old_value("VERSION", "2.0"))};')
+    out.append(f'export const VERSION = {json.dumps(old_value("VERSION", "0.2 beta"))};')
     out.append("")
     # keep the sample program and the menu exactly as they are now
     sample = re.search(r"export const SAMPLE_CODE = `.*?`;", current, re.S)

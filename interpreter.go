@@ -9,7 +9,7 @@ import (
 )
 
 // Value is what a variable holds: a float64 (number), a string, a bool (true/false),
-// or a *List.
+// a *List, a *Tensor (see tensor.go) or a *Module.
 type Value interface{}
 
 // List is a list of values. It is used through a pointer, so two names for the same
@@ -55,6 +55,12 @@ func equalValues(a, b Value) bool {
 		}
 		return true
 	}
+	// tensors are equal when their shapes and numbers are the same
+	ta, aIsTensor := a.(*Tensor)
+	tb, bIsTensor := b.(*Tensor)
+	if aIsTensor && bIsTensor {
+		return ta.equal(tb)
+	}
 	return a == b
 }
 
@@ -62,7 +68,7 @@ func equalValues(a, b Value) bool {
 type binding struct {
 	value Value
 	final bool
-	typ   string // "number", "text", "bool", "list" or "any"; "" means no type was given
+	typ   string // "number", "text", "bool", "list", "tensor" or "any"; "" means no type was given
 }
 
 // typeName says what kind of value v is.
@@ -76,6 +82,8 @@ func typeName(v Value) string {
 		return "bool"
 	case *List:
 		return "list"
+	case *Tensor:
+		return "tensor"
 	case *Module:
 		return "module"
 	}
@@ -282,8 +290,20 @@ func (in *Interpreter) eval(e Expr, env *Environment) (Value, error) {
 				return nil, err
 			}
 			return string(chars[i]), nil
+		case *Tensor:
+			if t.tracked() {
+				return nil, noGradient("[ ]")
+			}
+			if t.isScalar() {
+				return nil, fmt.Errorf("this tensor is a single number; use item(...) to get it")
+			}
+			i, err := toIndex(index, t.Shape[0], "the tensor has "+itemsWord(t.Shape[0])+" in its first dimension")
+			if err != nil {
+				return nil, err
+			}
+			return t.item(i), nil
 		}
-		return nil, fmt.Errorf("only lists and text can be indexed")
+		return nil, fmt.Errorf("only lists, text and tensors can be indexed")
 	case LogicExpr:
 		left, err := in.eval(x.Left, env)
 		if err != nil {
@@ -336,6 +356,9 @@ func (in *Interpreter) eval(e Expr, env *Environment) (Value, error) {
 			}
 			return !b, nil
 		}
+		if t, isTensor := v.(*Tensor); isTensor {
+			return tensorMath("*", t, -1.0) // -t flips the sign of every number
+		}
 		n, ok := v.(float64)
 		if !ok {
 			return nil, fmt.Errorf("can only negate numbers")
@@ -380,6 +403,14 @@ func (in *Interpreter) eval(e Expr, env *Environment) (Value, error) {
 			if leftIsText || rightIsText {
 				return show(left) + show(right), nil
 			}
+		}
+
+		// math with a tensor on either side works position by position (see tensor.go)
+		_, leftIsTensor := left.(*Tensor)
+		_, rightIsTensor := right.(*Tensor)
+		isMath := x.Op == "+" || x.Op == "-" || x.Op == "*" || x.Op == "/" || x.Op == "%"
+		if isMath && (leftIsTensor || rightIsTensor) {
+			return tensorMath(x.Op, left, right)
 		}
 
 		// everything else works on numbers only
@@ -448,6 +479,16 @@ func show(v Value) string {
 	return fmt.Sprint(v)
 }
 
+// loopSignal is how break and continue travel out of nested blocks. They use the same road
+// as return (returned = true), but the nearest loop catches them. The parser makes sure they
+// only appear inside a loop, so a signal can never escape a function or the program.
+type loopSignal string
+
+const (
+	breakSignal    loopSignal = "break"
+	continueSignal loopSignal = "continue"
+)
+
 // runBlock runs a list of statements in order. It stops at the first error.
 // The whole program, the inside of an if or while, and function bodies all use it.
 // If a "return" happens, it stops early and reports returned = true with the value.
@@ -506,6 +547,10 @@ func (in *Interpreter) runStatement(s Statement, env *Environment) (Value, bool,
 			return nil, false, err
 		}
 		return v, true, nil
+	case BreakStatement:
+		return breakSignal, true, nil
+	case ContinueStatement:
+		return continueSignal, true, nil
 	case ExprStatement:
 		// a call on its own line: run it and ignore any value it returns
 		if _, _, err := in.callFunction(st.Call, env); err != nil {
@@ -542,8 +587,17 @@ func (in *Interpreter) runStatement(s Statement, env *Environment) (Value, bool,
 			}
 			// every pass gets a fresh scope, so a let inside the loop starts new each time
 			val, returned, err := in.runBlock(st.Body, NewEnv(env))
-			if err != nil || returned {
-				return val, returned, err
+			if err != nil {
+				return nil, false, err
+			}
+			if returned {
+				if val == breakSignal {
+					break // leave this loop
+				}
+				if val != continueSignal {
+					return val, true, nil // a real return: pass it up
+				}
+				// continue: nothing to do, go on to the next pass
 			}
 		}
 	case ForStatement:
@@ -565,6 +619,9 @@ func (in *Interpreter) runStatement(s Statement, env *Environment) (Value, bool,
 		if !ok {
 			if _, isText := target.(string); isText {
 				return nil, false, fmt.Errorf("text cannot be changed; make a new piece of text instead")
+			}
+			if _, isTensor := target.(*Tensor); isTensor {
+				return nil, false, fmt.Errorf("a tensor cannot be changed; make a new one instead")
 			}
 			return nil, false, fmt.Errorf("only list items can be changed")
 		}
@@ -600,8 +657,16 @@ func (in *Interpreter) runFor(st ForStatement, env *Environment) (Value, bool, e
 			scope := NewEnv(env)
 			scope.define(st.Var, item, false, "")
 			val, returned, err := in.runBlock(st.Body, scope)
-			if err != nil || returned {
-				return val, returned, err
+			if err != nil {
+				return nil, false, err
+			}
+			if returned {
+				if val == breakSignal {
+					break
+				}
+				if val != continueSignal {
+					return val, true, nil
+				}
 			}
 		}
 		return nil, false, nil
@@ -624,8 +689,16 @@ func (in *Interpreter) runFor(st ForStatement, env *Environment) (Value, bool, e
 		scope := NewEnv(env) // each pass has its own scope holding the loop variable
 		scope.define(st.Var, i, false, "")
 		val, returned, err := in.runBlock(st.Body, scope)
-		if err != nil || returned {
-			return val, returned, err
+		if err != nil {
+			return nil, false, err
+		}
+		if returned {
+			if val == breakSignal {
+				break
+			}
+			if val != continueSignal {
+				return val, true, nil
+			}
 		}
 	}
 	return nil, false, nil

@@ -1,0 +1,6 @@
+loss 20, gradient tensor([[-20]])
+tensor([[1]])
+loss 5, gradient tensor([[-10]])
+tensor([[1.5]])
+loss 1.25, gradient tensor([[-5]])
+tensor([[1.75]])

@@ -1,0 +1,2 @@
+Runtime error on line 2: gradients for relu are not supported yet (it was used on a learnable tensor)
+    2 | print(relu(w))

@@ -793,3 +793,105 @@ print(f(2, 5))
 ```output
 10
 ```
+
+## Lesson 14: Tensors
+
+**1.**
+
+```gan
+let t = tensor([1, 2, 3, 4])
+print(t * 2)
+```
+
+```output
+tensor([2, 4, 6, 8])
+```
+
+**2.**
+
+```gan
+print(sum(tensor([[5, 5], [5, 5]])))
+```
+
+```output
+20
+```
+
+**3.** One row times one column gives one number: 1 + 2 + 3.
+
+```gan
+print(matmul(tensor([[1, 2, 3]]), tensor([[1], [1], [1]])))
+```
+
+```output
+tensor([[6]])
+```
+
+**4.** The differences are 0, -1 and 2. Squared they are 0, 1 and 4, and their average is 5 / 3.
+
+```gan
+let guess = tensor([2, 4, 9])
+let right = tensor([2, 5, 7])
+let diff = guess - right
+print(mean(diff * diff))
+```
+
+```output
+1.6666666666666667
+```
+
+## Lesson 15: How a model learns
+
+**1.** Each gradient is twice its number:
+
+```gan
+let w = learnable(tensor([1, 5]))
+backward(sum(w * w))
+print(grad(w))
+```
+
+```output
+tensor([2, 10])
+```
+
+**2.** Yes. The loss is checked after the tenth step:
+
+```gan
+let x = tensor([[1], [2]])
+let target = tensor([[2], [4]])
+var w = learnable(tensor([[0]]))
+
+for round in 1 to 10 {
+    let diff = matmul(x, w) - target
+    backward(sum(diff * diff))
+    w = learnable(w - 0.05 * grad(w))
+}
+let diff = matmul(x, w) - target
+print(item(sum(diff * diff)) < 0.001)
+```
+
+```output
+true
+```
+
+**3.** The step is too big. The weight jumps past 2, further each time, and the loss **grows**:
+
+```gan
+let x = tensor([[1], [2]])
+let target = tensor([[2], [4]])
+var w = learnable(tensor([[0]]))
+
+for round in 1 to 3 {
+    let diff = matmul(x, w) - target
+    let loss = sum(diff * diff)
+    backward(loss)
+    print(item(loss))
+    w = learnable(w - 0.25 * grad(w))
+}
+```
+
+```output
+20
+45
+101.25
+```

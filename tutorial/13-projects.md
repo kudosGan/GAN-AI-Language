@@ -264,7 +264,7 @@ Ideas to try next:
 - Collect numbers until the user types `done`, then print their average.
 - Reverse a sentence word by word.
 
-You now know all of GAN's language: printing, variables, math, text, decisions, loops, functions, lists,
-input, libraries and types. The rest is practice.
+You now know the basics of GAN: printing, variables, math, text, decisions, loops, functions, lists,
+input, libraries and types.
 
-Back to the [course index](README.md)
+Next: [Lesson 14: Tensors](14-tensors.md), the first step into AI.

@@ -145,6 +145,16 @@ type ReturnStatement struct {
 	Line  int
 }
 
+// BreakStatement: break. Stops the nearest loop.
+type BreakStatement struct {
+	Line int
+}
+
+// ContinueStatement: continue. Skips to the next pass of the nearest loop.
+type ContinueStatement struct {
+	Line int
+}
+
 // ExprStatement is a call written on its own line, e.g. greet("GAN"). Its value is thrown away.
 type ExprStatement struct {
 	Call CallExpr
@@ -176,6 +186,10 @@ func lineOf(s Statement) int {
 		return st.Line
 	case ExprStatement:
 		return st.Line
+	case BreakStatement:
+		return st.Line
+	case ContinueStatement:
+		return st.Line
 	}
 	return 0
 }
@@ -183,8 +197,17 @@ func lineOf(s Statement) int {
 // ---- The parser ----
 
 type Parser struct {
-	tokens []Token
-	pos    int
+	tokens    []Token
+	pos       int
+	loopDepth int // how many loops we are inside; break and continue need at least one
+}
+
+// parseLoopBody reads the block of a while or for loop, where break and continue are allowed.
+func (p *Parser) parseLoopBody() ([]Statement, error) {
+	p.loopDepth++
+	body, err := p.parseBlock()
+	p.loopDepth--
+	return body, err
 }
 
 func (p *Parser) peek() *Token {
@@ -500,7 +523,7 @@ func (p *Parser) parseCall(name string) (CallExpr, error) {
 }
 
 // validTypes are the type names you can write after a colon.
-var validTypes = map[string]bool{"number": true, "text": true, "bool": true, "list": true, "any": true}
+var validTypes = map[string]bool{"number": true, "text": true, "bool": true, "list": true, "tensor": true, "any": true}
 
 // parseOptionalType reads ": number" if there is a colon next. It returns "" if there is none.
 func (p *Parser) parseOptionalType() (string, error) {
@@ -513,7 +536,7 @@ func (p *Parser) parseOptionalType() (string, error) {
 		return "", err
 	}
 	if !validTypes[typeTok.Value] {
-		return "", at(typeTok.Line, fmt.Errorf("unknown type %q (the types are: number, text, bool, list, any)", typeTok.Value))
+		return "", at(typeTok.Line, fmt.Errorf("unknown type %q (the types are: number, text, bool, list, tensor, any)", typeTok.Value))
 	}
 	return typeTok.Value, nil
 }
@@ -621,7 +644,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 		if _, err := p.expect(LBRACE); err != nil {
 			return nil, err
 		}
-		body, err := p.parseBlock()
+		body, err := p.parseLoopBody()
 		if err != nil {
 			return nil, err
 		}
@@ -651,7 +674,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 		if _, err := p.expect(LBRACE); err != nil {
 			return nil, err
 		}
-		body, err := p.parseBlock()
+		body, err := p.parseLoopBody()
 		if err != nil {
 			return nil, err
 		}
@@ -699,7 +722,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 		if _, err := p.expect(LBRACE); err != nil {
 			return nil, err
 		}
+		// a function body starts outside any loop, even if the func is written inside one
+		outerLoops := p.loopDepth
+		p.loopDepth = 0
 		body, err := p.parseBlock()
+		p.loopDepth = outerLoops
 		if err != nil {
 			return nil, err
 		}
@@ -711,6 +738,15 @@ func (p *Parser) parseStatement() (Statement, error) {
 			return nil, err
 		}
 		return ImportStatement{Path: path.Value, Line: line}, nil
+
+	case "break", "continue": // only allowed inside a loop
+		if p.loopDepth == 0 {
+			return nil, at(line, fmt.Errorf("%q can only be used inside a loop", name.Value))
+		}
+		if name.Value == "break" {
+			return BreakStatement{Line: line}, nil
+		}
+		return ContinueStatement{Line: line}, nil
 
 	case "return": // return value
 		value, err := p.parseExpr()

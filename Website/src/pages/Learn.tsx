@@ -1,5 +1,6 @@
 // Learn page: the tutorial lessons in order.
 import LessonList from "../components/LessonList";
+import { LESSONS } from "../data/content";
 import "./Page.css";
 
 export default function Learn() {
@@ -7,8 +8,8 @@ export default function Learn() {
     <div className="container page">
       <h1>Learn GAN</h1>
       <p>
-        Fourteen short lessons that start from nothing. Every example was run with the real
-        GAN program, so what you read is what you will see.
+        {LESSONS.length} short lessons that start from nothing and end with a model that learns.
+        Their examples are checked against the real GAN program.
       </p>
       <LessonList />
     </div>

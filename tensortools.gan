@@ -1,0 +1,24 @@
+let t = tensor([[1, 2, 3], [4, 5, 6]])
+print(t[1])              // row 1 (counting from 0)
+print(t[1][2])           // one number
+print(transpose(t))      // rows and columns swapped
+print(-t)
+print(mean(t))
+print(zeros([2, 2]))
+print(ones([3]))
+
+// functions used by neural networks
+print(relu(tensor([-2, 0, 3])))
+print(sigmoid(0))
+print(tanh(0))
+print(exp(0))
+print(log(1))
+
+// the same seed gives the same random numbers
+seed(42)
+let a = random([2, 3])
+seed(42)
+let b = random([2, 3])
+print(a == b)
+print(a == random([2, 3]))
+print(shape(randomNormal([4, 2])))

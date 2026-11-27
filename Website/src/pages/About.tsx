@@ -6,8 +6,12 @@ export default function About() {
     <div className="container page">
       <h1>About GAN</h1>
       <p>
-        GAN is a programming language built step by step, as a way to learn how languages work.
-        It is written in Go. A program goes through three stages: the <b>lexer</b> cuts the text
+        GAN is named after <b>generative adversarial networks</b>. Its goal is to become a language
+        designed for AI and AI agents, with tensors and learning built in. It is at an early beta
+        stage and is being built step by step.
+      </p>
+      <p>
+        GAN is written in Go. A program goes through three stages: the <b>lexer</b> cuts the text
         into words, the <b>parser</b> builds a tree of meaning, and the <b>interpreter</b> runs it.
       </p>
       <p>

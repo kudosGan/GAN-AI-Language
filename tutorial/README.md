@@ -19,6 +19,8 @@ what the earlier ones taught.
 | 11 | [Types](11-types.md) | `let x: number`, type-checked functions |
 | 12 | [When things go wrong](12-errors.md) | reading errors, finding bugs |
 | 13 | [Projects](13-projects.md) | FizzBuzz, primes, guessing game, calculator... |
+| 14 | [Tensors](14-tensors.md) | `tensor`, `shape`, `sum`, `matmul`: the first step into AI |
+| 15 | [How a model learns](15-learning.md) | `learnable`, `backward`, `grad`, training a tiny model |
 
 Also here:
 

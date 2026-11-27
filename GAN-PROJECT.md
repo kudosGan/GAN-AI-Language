@@ -1,9 +1,9 @@
 # GAN programming language: project handoff
 
 ## About
-GAN is my own programming language (file extension .gan), written in Go. Folder: C:\Desktop\GAN. Go 1.27 on Windows, module `mylang`.
-Build: `go build -o gan.exe .`   Run: `gan file.gan`   Version: `gan --version` (GAN 2.0)
-Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; builtins.go, modules.go, errors.go; main.go ties them together).
+GAN is my own programming language (file extension .gan), written in Go. It is named after generative adversarial networks; the goal is a language designed for AI and agentic AI. Current version: 0.2 beta. Folder: C:\Desktop\GAN. Go 1.27 on Windows, module `mylang`.
+Build: `go build -o gan.exe .`   Run: `gan file.gan`   Version: `gan --version` (GAN 0.2 (beta))
+Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; builtins.go, modules.go, errors.go, tensor.go, autograd.go; main.go ties them together).
 
 ## How I want you to work
 - I'm a beginner in Go and in language design. Go one step at a time.
@@ -14,26 +14,32 @@ Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; b
 - After each step works, wait for me to say "next".
 (For steps 15 to 26 I allowed continuing without stopping. Normal rules apply again from here.)
 
-## Progress: steps 1 to 26 are done
+## Progress: steps 1 to 30 are done
 1-6 lexer/parser/print, 7 interpreter, 8 variables, 9 math+precedence, 10 comparisons+if/else, 11 while+assignment,
 12 functions, 13 error messages with line numbers, 14 parentheses+negative numbers, 15 comments (//), 16 decimals,
 17 joining text with +, 18 true/false + and/or/not + else if, 19 scope + final/var, 20 for loops (for i in 1 to 5),
 21 lists, 22 built-in functions, 23 import + libraries (math, text, lists) + % + fail(), 24 optional types (let x: number),
-25 Windows installer (installer\GAN-Setup.exe), 26 tutorial (tutorial\, 14 lessons).
-Still to come (only if I ask): break/continue, dictionaries, text escapes, random numbers, reading files, concurrency, package downloads.
+25 Windows installer (installer\GAN-Setup.exe), 26 tutorial (tutorial\), 27 break/continue, 28 tensors, 29 random/transpose/indexing/network maths,
+30 first automatic gradients. The tutorial now has 16 lessons (0-15).
+Next (only after I say go): Step 31 gradients for / relu sigmoid tanh exp log transpose; then train a two-layer
+network; later a tiny GAN, agent tools with local models, speed. Also missing: dictionaries, text escapes, files.
 
 ## The language today
-- Values: number (float64), text, bool, list, module. Blocks use { }. Comments use //.
-- let/var/final, assignment, if/else if/else, while, for i in a to b (and for x in list/text), func/return, import "name".
+- Values: number (float64), text, bool, list, tensor, module. Blocks use { }. Comments use //.
+- let/var/final, assignment, if/else if/else, while, for i in a to b (and for x in list/text), func/return, import "name", break, continue.
 - Operators: + - * / %, == != < > <= >=, and or not, [index], module.name, f(x). + joins when either side is text.
-- Optional types: number, text, bool, list, any (checked while running). typeof(x).
+- Optional types: number, text, bool, list, tensor, any (checked while running). typeof(x).
 - Built-ins: len push pop str num input abs floor round sqrt pow min max upper lower contains fail typeof.
+- AI built-ins: tensor shape sum mean matmul transpose zeros ones random randomNormal seed relu sigmoid tanh exp log.
+- Gradients: learnable backward grad item (through + - * minus matmul sum mean; other tensor maths refuses).
+- Also run `go test` (autograd_test.go checks gradients numerically).
 - Libraries in libs\ (written in GAN): math, text, lists. A path import ("modules/x.gan") is relative to the importing file.
 - Errors: "Syntax error on line N" / "Runtime error on line N" plus the source line; errors in imported files name the file.
 - Scope: each block and each function call has its own scope; functions can see their module's globals. Lists are shared, not copied.
 
 ## Project layout
-- main.go lexer.go parser.go interpreter.go builtins.go modules.go errors.go: the language
+- main.go lexer.go parser.go interpreter.go builtins.go modules.go errors.go tensor.go autograd.go: the language
+- Website\: React site published with GitHub Pages; agent\web\: the five website agents
 - libs\*.gan standard libraries; modules\*.gan helper files used by tests
 - *.gan in the root: examples and tests (names ending in _error are meant to fail)
 - tests\run.py: regression tests (python tests\run.py; --update rewrites tests\expected after checking output by eye)
@@ -44,7 +50,7 @@ Still to come (only if I ask): break/continue, dictionaries, text escapes, rando
 
 ## Things worth remembering
 - Strings have no escape sequences and cannot contain a double quote.
-- No break/continue. Functions must be defined before the call runs.
+- Functions must be defined before the call runs.
 - input() echoes the line when stdin is piped, so recorded runs read like real ones.
 - Tests print the same thing every time, so the regression runner compares full output.
 
@@ -92,7 +98,7 @@ func main() {
 	}
 
 	if os.Args[1] == "--version" || os.Args[1] == "-v" {
-		fmt.Println("GAN 2.0")
+		fmt.Println("GAN 0.2 (beta)")
 		return
 	}
 
@@ -452,6 +458,16 @@ type ReturnStatement struct {
 	Line  int
 }
 
+// BreakStatement: break. Stops the nearest loop.
+type BreakStatement struct {
+	Line int
+}
+
+// ContinueStatement: continue. Skips to the next pass of the nearest loop.
+type ContinueStatement struct {
+	Line int
+}
+
 // ExprStatement is a call written on its own line, e.g. greet("GAN"). Its value is thrown away.
 type ExprStatement struct {
 	Call CallExpr
@@ -483,6 +499,10 @@ func lineOf(s Statement) int {
 		return st.Line
 	case ExprStatement:
 		return st.Line
+	case BreakStatement:
+		return st.Line
+	case ContinueStatement:
+		return st.Line
 	}
 	return 0
 }
@@ -490,8 +510,17 @@ func lineOf(s Statement) int {
 // ---- The parser ----
 
 type Parser struct {
-	tokens []Token
-	pos    int
+	tokens    []Token
+	pos       int
+	loopDepth int // how many loops we are inside; break and continue need at least one
+}
+
+// parseLoopBody reads the block of a while or for loop, where break and continue are allowed.
+func (p *Parser) parseLoopBody() ([]Statement, error) {
+	p.loopDepth++
+	body, err := p.parseBlock()
+	p.loopDepth--
+	return body, err
 }
 
 func (p *Parser) peek() *Token {
@@ -807,7 +836,7 @@ func (p *Parser) parseCall(name string) (CallExpr, error) {
 }
 
 // validTypes are the type names you can write after a colon.
-var validTypes = map[string]bool{"number": true, "text": true, "bool": true, "list": true, "any": true}
+var validTypes = map[string]bool{"number": true, "text": true, "bool": true, "list": true, "tensor": true, "any": true}
 
 // parseOptionalType reads ": number" if there is a colon next. It returns "" if there is none.
 func (p *Parser) parseOptionalType() (string, error) {
@@ -820,7 +849,7 @@ func (p *Parser) parseOptionalType() (string, error) {
 		return "", err
 	}
 	if !validTypes[typeTok.Value] {
-		return "", at(typeTok.Line, fmt.Errorf("unknown type %q (the types are: number, text, bool, list, any)", typeTok.Value))
+		return "", at(typeTok.Line, fmt.Errorf("unknown type %q (the types are: number, text, bool, list, tensor, any)", typeTok.Value))
 	}
 	return typeTok.Value, nil
 }
@@ -928,7 +957,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 		if _, err := p.expect(LBRACE); err != nil {
 			return nil, err
 		}
-		body, err := p.parseBlock()
+		body, err := p.parseLoopBody()
 		if err != nil {
 			return nil, err
 		}
@@ -958,7 +987,7 @@ func (p *Parser) parseStatement() (Statement, error) {
 		if _, err := p.expect(LBRACE); err != nil {
 			return nil, err
 		}
-		body, err := p.parseBlock()
+		body, err := p.parseLoopBody()
 		if err != nil {
 			return nil, err
 		}
@@ -1006,7 +1035,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 		if _, err := p.expect(LBRACE); err != nil {
 			return nil, err
 		}
+		// a function body starts outside any loop, even if the func is written inside one
+		outerLoops := p.loopDepth
+		p.loopDepth = 0
 		body, err := p.parseBlock()
+		p.loopDepth = outerLoops
 		if err != nil {
 			return nil, err
 		}
@@ -1018,6 +1051,15 @@ func (p *Parser) parseStatement() (Statement, error) {
 			return nil, err
 		}
 		return ImportStatement{Path: path.Value, Line: line}, nil
+
+	case "break", "continue": // only allowed inside a loop
+		if p.loopDepth == 0 {
+			return nil, at(line, fmt.Errorf("%q can only be used inside a loop", name.Value))
+		}
+		if name.Value == "break" {
+			return BreakStatement{Line: line}, nil
+		}
+		return ContinueStatement{Line: line}, nil
 
 	case "return": // return value
 		value, err := p.parseExpr()
@@ -1121,7 +1163,7 @@ import (
 )
 
 // Value is what a variable holds: a float64 (number), a string, a bool (true/false),
-// or a *List.
+// a *List, a *Tensor (see tensor.go) or a *Module.
 type Value interface{}
 
 // List is a list of values. It is used through a pointer, so two names for the same
@@ -1167,6 +1209,12 @@ func equalValues(a, b Value) bool {
 		}
 		return true
 	}
+	// tensors are equal when their shapes and numbers are the same
+	ta, aIsTensor := a.(*Tensor)
+	tb, bIsTensor := b.(*Tensor)
+	if aIsTensor && bIsTensor {
+		return ta.equal(tb)
+	}
 	return a == b
 }
 
@@ -1174,7 +1222,7 @@ func equalValues(a, b Value) bool {
 type binding struct {
 	value Value
 	final bool
-	typ   string // "number", "text", "bool", "list" or "any"; "" means no type was given
+	typ   string // "number", "text", "bool", "list", "tensor" or "any"; "" means no type was given
 }
 
 // typeName says what kind of value v is.
@@ -1188,6 +1236,8 @@ func typeName(v Value) string {
 		return "bool"
 	case *List:
 		return "list"
+	case *Tensor:
+		return "tensor"
 	case *Module:
 		return "module"
 	}
@@ -1394,8 +1444,20 @@ func (in *Interpreter) eval(e Expr, env *Environment) (Value, error) {
 				return nil, err
 			}
 			return string(chars[i]), nil
+		case *Tensor:
+			if t.tracked() {
+				return nil, noGradient("[ ]")
+			}
+			if t.isScalar() {
+				return nil, fmt.Errorf("this tensor is a single number; use item(...) to get it")
+			}
+			i, err := toIndex(index, t.Shape[0], "the tensor has "+itemsWord(t.Shape[0])+" in its first dimension")
+			if err != nil {
+				return nil, err
+			}
+			return t.item(i), nil
 		}
-		return nil, fmt.Errorf("only lists and text can be indexed")
+		return nil, fmt.Errorf("only lists, text and tensors can be indexed")
 	case LogicExpr:
 		left, err := in.eval(x.Left, env)
 		if err != nil {
@@ -1448,6 +1510,9 @@ func (in *Interpreter) eval(e Expr, env *Environment) (Value, error) {
 			}
 			return !b, nil
 		}
+		if t, isTensor := v.(*Tensor); isTensor {
+			return tensorMath("*", t, -1.0) // -t flips the sign of every number
+		}
 		n, ok := v.(float64)
 		if !ok {
 			return nil, fmt.Errorf("can only negate numbers")
@@ -1492,6 +1557,14 @@ func (in *Interpreter) eval(e Expr, env *Environment) (Value, error) {
 			if leftIsText || rightIsText {
 				return show(left) + show(right), nil
 			}
+		}
+
+		// math with a tensor on either side works position by position (see tensor.go)
+		_, leftIsTensor := left.(*Tensor)
+		_, rightIsTensor := right.(*Tensor)
+		isMath := x.Op == "+" || x.Op == "-" || x.Op == "*" || x.Op == "/" || x.Op == "%"
+		if isMath && (leftIsTensor || rightIsTensor) {
+			return tensorMath(x.Op, left, right)
 		}
 
 		// everything else works on numbers only
@@ -1560,6 +1633,16 @@ func show(v Value) string {
 	return fmt.Sprint(v)
 }
 
+// loopSignal is how break and continue travel out of nested blocks. They use the same road
+// as return (returned = true), but the nearest loop catches them. The parser makes sure they
+// only appear inside a loop, so a signal can never escape a function or the program.
+type loopSignal string
+
+const (
+	breakSignal    loopSignal = "break"
+	continueSignal loopSignal = "continue"
+)
+
 // runBlock runs a list of statements in order. It stops at the first error.
 // The whole program, the inside of an if or while, and function bodies all use it.
 // If a "return" happens, it stops early and reports returned = true with the value.
@@ -1618,6 +1701,10 @@ func (in *Interpreter) runStatement(s Statement, env *Environment) (Value, bool,
 			return nil, false, err
 		}
 		return v, true, nil
+	case BreakStatement:
+		return breakSignal, true, nil
+	case ContinueStatement:
+		return continueSignal, true, nil
 	case ExprStatement:
 		// a call on its own line: run it and ignore any value it returns
 		if _, _, err := in.callFunction(st.Call, env); err != nil {
@@ -1654,8 +1741,17 @@ func (in *Interpreter) runStatement(s Statement, env *Environment) (Value, bool,
 			}
 			// every pass gets a fresh scope, so a let inside the loop starts new each time
 			val, returned, err := in.runBlock(st.Body, NewEnv(env))
-			if err != nil || returned {
-				return val, returned, err
+			if err != nil {
+				return nil, false, err
+			}
+			if returned {
+				if val == breakSignal {
+					break // leave this loop
+				}
+				if val != continueSignal {
+					return val, true, nil // a real return: pass it up
+				}
+				// continue: nothing to do, go on to the next pass
 			}
 		}
 	case ForStatement:
@@ -1677,6 +1773,9 @@ func (in *Interpreter) runStatement(s Statement, env *Environment) (Value, bool,
 		if !ok {
 			if _, isText := target.(string); isText {
 				return nil, false, fmt.Errorf("text cannot be changed; make a new piece of text instead")
+			}
+			if _, isTensor := target.(*Tensor); isTensor {
+				return nil, false, fmt.Errorf("a tensor cannot be changed; make a new one instead")
 			}
 			return nil, false, fmt.Errorf("only list items can be changed")
 		}
@@ -1712,8 +1811,16 @@ func (in *Interpreter) runFor(st ForStatement, env *Environment) (Value, bool, e
 			scope := NewEnv(env)
 			scope.define(st.Var, item, false, "")
 			val, returned, err := in.runBlock(st.Body, scope)
-			if err != nil || returned {
-				return val, returned, err
+			if err != nil {
+				return nil, false, err
+			}
+			if returned {
+				if val == breakSignal {
+					break
+				}
+				if val != continueSignal {
+					return val, true, nil
+				}
 			}
 		}
 		return nil, false, nil
@@ -1736,8 +1843,16 @@ func (in *Interpreter) runFor(st ForStatement, env *Environment) (Value, bool, e
 		scope := NewEnv(env) // each pass has its own scope holding the loop variable
 		scope.define(st.Var, i, false, "")
 		val, returned, err := in.runBlock(st.Body, scope)
-		if err != nil || returned {
-			return val, returned, err
+		if err != nil {
+			return nil, false, err
+		}
+		if returned {
+			if val == breakSignal {
+				break
+			}
+			if val != continueSignal {
+				return val, true, nil
+			}
 		}
 	}
 	return nil, false, nil
@@ -1823,6 +1938,142 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("len needs a list or text")
 	}},
 
+	// ---- tensors (the code that does the work is in tensor.go) ----
+
+	// tensor(list): make a tensor from a (nested) list of numbers
+	"tensor": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := newTensor(a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return t, true, nil
+	}},
+
+	// shape(t): the size of each dimension, as a list
+	"shape": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("shape", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		list := &List{Items: []Value{}}
+		for _, n := range t.Shape {
+			list.Items = append(list.Items, float64(n))
+		}
+		return list, true, nil
+	}},
+
+	// sum(t): all the numbers of a tensor added up
+	"sum": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("sum", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return total(t, 1), true, nil
+	}},
+
+	// matmul(a, b): matrix multiplication
+	"matmul": {2, 2, func(a []Value) (Value, bool, error) {
+		x, err := needTensor("matmul", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		y, err := needTensor("matmul", a[1])
+		if err != nil {
+			return nil, false, err
+		}
+		result, err := matmul(x, y)
+		if err != nil {
+			return nil, false, err
+		}
+		return result, true, nil
+	}},
+
+	// new tensors of a given shape, e.g. zeros([2, 3])
+	"zeros": shapeBuiltin("zeros", func() float64 { return 0 }),
+	"ones":  shapeBuiltin("ones", func() float64 { return 1 }),
+	// random: from 0 up to (not including) 1. randomNormal: centred on 0, mostly close to it.
+	"random":       shapeBuiltin("random", func() float64 { return random.Float64() }),
+	"randomNormal": shapeBuiltin("randomNormal", func() float64 { return random.NormFloat64() }),
+
+	// seed(n): make the random numbers repeat (gives no value back)
+	"seed": {1, 1, func(a []Value) (Value, bool, error) {
+		return nil, false, setSeed(a[0])
+	}},
+
+	// mean(t): the average of all the numbers
+	"mean": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("mean", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return total(t, float64(len(t.Data))), true, nil // a tensor is never empty
+	}},
+
+	// ---- automatic gradients (the code that does the work is in autograd.go) ----
+
+	// learnable(t): a tensor whose gradient we want
+	"learnable": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("learnable", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return learnable(t), true, nil
+	}},
+
+	// backward(loss): work out the gradients (gives no value back)
+	"backward": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("backward", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return nil, false, backward(t)
+	}},
+
+	// grad(w): the gradient of w found by the last backward
+	"grad": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("grad", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		g, err := gradientOf(t)
+		if err != nil {
+			return nil, false, err
+		}
+		return g, true, nil
+	}},
+
+	// item(t): the number inside a tensor that holds just one
+	"item": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("item", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		if len(t.Data) != 1 {
+			return nil, false, fmt.Errorf("item needs a tensor with exactly one number, but got shape %s", shapeText(t.Shape))
+		}
+		return t.Data[0], true, nil
+	}},
+
+	// transpose(t): swap rows and columns
+	"transpose": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("transpose", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		result, err := transpose(t)
+		if err != nil {
+			return nil, false, err
+		}
+		return result, true, nil
+	}},
+
+	// these work on one number or on every number of a tensor
+	"relu":    numberBuiltin("relu", relu, nil),
+	"sigmoid": numberBuiltin("sigmoid", sigmoid, nil),
+	"tanh":    numberBuiltin("tanh", math.Tanh, nil),
+	"exp":     numberBuiltin("exp", math.Exp, nil),
+	"log":     numberBuiltin("log", math.Log, positive),
+
 	// push(list, item): add an item to the end of a list (gives no value back)
 	"push": {2, 2, func(a []Value) (Value, bool, error) {
 		list, ok := a[0].(*List)
@@ -1852,7 +2103,7 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("%s", show(a[0]))
 	}},
 
-	// typeof(x): "number", "text", "bool", "list" or "module"
+	// typeof(x): "number", "text", "bool", "list", "tensor" or "module"
 	"typeof": {1, 1, func(a []Value) (Value, bool, error) {
 		return typeName(a[0]), true, nil
 	}},
@@ -2161,3 +2412,618 @@ func locate(err error, line int, file string) error {
 }
 ```
 
+## tensor.go
+```go
+package main
+
+// Tensors: grids of numbers, the basic building block of AI.
+//
+// A tensor has a SHAPE (its size in each direction) and its numbers. The numbers are kept in
+// one flat list, row after row. For example
+//
+//	tensor([[1, 2, 3], [4, 5, 6]])   has Shape [2, 3] and Data [1 2 3 4 5 6]
+//
+// A tensor never changes after it is made: every operation gives a new one.
+
+import (
+	"fmt"
+	"math"
+	"math/rand/v2"
+	"strings"
+)
+
+// Tensor is a grid of numbers with any number of dimensions (1 or more).
+type Tensor struct {
+	Shape []int     // size of each dimension, e.g. [2, 3] = 2 rows and 3 columns
+	Data  []float64 // all the numbers, row after row
+	track *trace    // history for gradients (see autograd.go); nil for a plain tensor
+}
+
+// maxDimensions stops a list that contains itself from making GAN loop forever.
+const maxDimensions = 32
+
+// shapeText writes a shape the way GAN shows it: [2, 3].
+func shapeText(shape []int) string {
+	parts := make([]string, len(shape))
+	for i, n := range shape {
+		parts[i] = fmt.Sprint(n)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+// sameShape says whether two shapes are exactly equal.
+func sameShape(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// newTensor turns a (nested) list of numbers into a tensor.
+func newTensor(v Value) (*Tensor, error) {
+	list, ok := v.(*List)
+	if !ok {
+		return nil, fmt.Errorf("tensor needs a list of numbers")
+	}
+	t := &Tensor{}
+	if err := t.fill(list, 0); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+// fill reads one level of the nested list. depth says which dimension this list is.
+// The first list met at each depth decides the size; all the others must agree with it.
+func (t *Tensor) fill(list *List, depth int) error {
+	if depth >= maxDimensions {
+		return fmt.Errorf("a tensor cannot have more than %d dimensions", maxDimensions)
+	}
+	if len(list.Items) == 0 {
+		return fmt.Errorf("a tensor cannot be empty")
+	}
+	if depth == len(t.Shape) {
+		if len(t.Data) > 0 { // numbers were already found higher up, so this is too deep
+			return unevenTensor()
+		}
+		t.Shape = append(t.Shape, len(list.Items))
+	} else if t.Shape[depth] != len(list.Items) {
+		return unevenTensor()
+	}
+	for _, item := range list.Items {
+		switch x := item.(type) {
+		case float64:
+			if depth != len(t.Shape)-1 { // a number where a row was expected
+				return unevenTensor()
+			}
+			t.Data = append(t.Data, x)
+		case *List:
+			if err := t.fill(x, depth+1); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("a tensor can only hold numbers, but got %s", typeName(item))
+		}
+	}
+	return nil
+}
+
+func unevenTensor() error {
+	return fmt.Errorf("all rows of a tensor must have the same shape")
+}
+
+// String shows a tensor as tensor([[1, 2], [3, 4]]).
+func (t *Tensor) String() string {
+	if t.isScalar() {
+		return "tensor(" + show(t.Data[0]) + ")"
+	}
+	var out strings.Builder
+	next := 0 // the next number in Data to write
+	var write func(depth int)
+	write = func(depth int) {
+		out.WriteString("[")
+		for i := 0; i < t.Shape[depth]; i++ {
+			if i > 0 {
+				out.WriteString(", ")
+			}
+			if depth == len(t.Shape)-1 {
+				out.WriteString(show(t.Data[next])) // numbers look the same as everywhere in GAN
+				next++
+			} else {
+				write(depth + 1)
+			}
+		}
+		out.WriteString("]")
+	}
+	write(0)
+	return "tensor(" + out.String() + ")"
+}
+
+// equal says whether two tensors have the same shape and the same numbers.
+func (t *Tensor) equal(other *Tensor) bool {
+	if !sameShape(t.Shape, other.Shape) {
+		return false
+	}
+	for i := range t.Data {
+		if t.Data[i] != other.Data[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// tensorMath does + - * / where at least one side is a tensor. It works position by position:
+// two tensors of the same shape, or a tensor and a single number (used for every position).
+func tensorMath(op string, left, right Value) (Value, error) {
+	if op != "+" && op != "-" && op != "*" && op != "/" {
+		return nil, fmt.Errorf("tensors can only use + - * / (not %s)", op)
+	}
+	a, aIsTensor := left.(*Tensor)
+	b, bIsTensor := right.(*Tensor)
+	// a one-number tensor such as tensor(5) is used for every position, like a number
+	if aIsTensor && bIsTensor && !a.isScalar() && !b.isScalar() && !sameShape(a.Shape, b.Shape) {
+		return nil, fmt.Errorf("tensor shapes do not match for %s: %s and %s", op, shapeText(a.Shape), shapeText(b.Shape))
+	}
+	_, aIsNumber := left.(float64)
+	_, bIsNumber := right.(float64)
+	if !(aIsTensor || aIsNumber) || !(bIsTensor || bIsNumber) {
+		return nil, fmt.Errorf("tensor math needs two tensors, or a tensor and a number")
+	}
+
+	if op == "/" && ((aIsTensor && a.tracked()) || (bIsTensor && b.tracked())) {
+		return nil, noGradient("/")
+	}
+
+	like := a // the tensor that gives the result its shape
+	if !aIsTensor || (a.isScalar() && bIsTensor) {
+		like = b
+	}
+	// at gives the number a side has at position i
+	at := func(v Value, i int) float64 {
+		if t, ok := v.(*Tensor); ok {
+			if t.isScalar() {
+				return t.Data[0]
+			}
+			return t.Data[i]
+		}
+		return v.(float64)
+	}
+	result := &Tensor{Shape: like.Shape, Data: make([]float64, len(like.Data))}
+	for i := range result.Data {
+		x, y := at(left, i), at(right, i)
+		switch op {
+		case "+":
+			result.Data[i] = x + y
+		case "-":
+			result.Data[i] = x - y
+		case "*":
+			result.Data[i] = x * y
+		case "/":
+			if y == 0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			result.Data[i] = x / y
+		}
+	}
+	// remember the history if a side is learnable (a and b are nil for plain numbers)
+	recordMath(op, result, a, b,
+		func(i int) float64 { return at(left, i) },
+		func(i int) float64 { return at(right, i) })
+	return result, nil
+}
+
+// matmul is matrix multiplication of two tables: [rows, n] times [n, cols] gives [rows, cols].
+// Each answer is one row of the first multiplied with one column of the second, then added up.
+func matmul(a, b *Tensor) (*Tensor, error) {
+	if len(a.Shape) != 2 || len(b.Shape) != 2 {
+		return nil, fmt.Errorf("matmul needs two tables (2 dimensions), but got shapes %s and %s", shapeText(a.Shape), shapeText(b.Shape))
+	}
+	rows, n, cols := a.Shape[0], a.Shape[1], b.Shape[1]
+	if b.Shape[0] != n {
+		return nil, fmt.Errorf("matmul shapes do not fit: %s and %s (the first has %d columns, so the second needs %d rows, but it has %d)",
+			shapeText(a.Shape), shapeText(b.Shape), n, n, b.Shape[0])
+	}
+	result := &Tensor{Shape: []int{rows, cols}, Data: make([]float64, rows*cols)}
+	for r := 0; r < rows; r++ {
+		for c := 0; c < cols; c++ {
+			total := 0.0
+			for k := 0; k < n; k++ {
+				total += a.Data[r*n+k] * b.Data[k*cols+c]
+			}
+			result.Data[r*cols+c] = total
+		}
+	}
+	if a.tracked() || b.tracked() {
+		recordMatmul(result, a, b)
+	}
+	return result, nil
+}
+
+// item reads position i of the first dimension: a number from a 1-D tensor, or else a
+// smaller tensor (a row of a table). i must already be checked to be in range.
+func (t *Tensor) item(i int) Value {
+	if len(t.Shape) == 1 {
+		return t.Data[i]
+	}
+	size := len(t.Data) / t.Shape[0] // how many numbers one row holds
+	// sharing the numbers is safe, because a tensor never changes
+	return &Tensor{Shape: t.Shape[1:], Data: t.Data[i*size : (i+1)*size]}
+}
+
+// transpose swaps the rows and columns of a table.
+func transpose(t *Tensor) (*Tensor, error) {
+	if t.tracked() {
+		return nil, noGradient("transpose")
+	}
+	if len(t.Shape) != 2 {
+		return nil, fmt.Errorf("transpose needs a table (2 dimensions), but got shape %s", shapeText(t.Shape))
+	}
+	rows, cols := t.Shape[0], t.Shape[1]
+	result := &Tensor{Shape: []int{cols, rows}, Data: make([]float64, len(t.Data))}
+	for r := 0; r < rows; r++ {
+		for c := 0; c < cols; c++ {
+			result.Data[c*rows+r] = t.Data[r*cols+c]
+		}
+	}
+	return result, nil
+}
+
+// maxElements stops a shape such as [100000, 100000] from using up all the memory.
+const maxElements = 10_000_000
+
+// filledTensor makes a tensor of the shape given by a GAN list such as [2, 3].
+// next is called once for every position to get its number.
+func filledTensor(fn string, shapeValue Value, next func() float64) (*Tensor, error) {
+	wrong := fmt.Errorf("%s needs a shape: a list of whole numbers of at least 1, such as [2, 3]", fn)
+	list, ok := shapeValue.(*List)
+	if !ok || len(list.Items) == 0 || len(list.Items) > maxDimensions {
+		return nil, wrong
+	}
+	shape := []int{}
+	total := 1
+	for _, item := range list.Items {
+		n, ok := item.(float64)
+		if !ok || n != math.Trunc(n) || n < 1 {
+			return nil, wrong
+		}
+		// checked before multiplying, so the total can never overflow
+		if n > float64(maxElements/total) {
+			return nil, fmt.Errorf("%s: that tensor is too big (the limit is %d numbers)", fn, maxElements)
+		}
+		shape = append(shape, int(n))
+		total *= int(n)
+	}
+	t := &Tensor{Shape: shape, Data: make([]float64, total)}
+	for i := range t.Data {
+		t.Data[i] = next()
+	}
+	return t, nil
+}
+
+// random is where random numbers come from. It starts from an unpredictable seed;
+// seed(n) restarts it, so the same numbers come out again.
+var random = rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+
+func setSeed(v Value) error {
+	n, ok := v.(float64)
+	if !ok || n != math.Trunc(n) || math.Abs(n) > 1e15 {
+		return fmt.Errorf("seed needs a whole number")
+	}
+	random = rand.New(rand.NewPCG(uint64(int64(n)), 0))
+	return nil
+}
+
+// everyNumber applies f to a single number, or to every number of a tensor.
+// check (which may be nil) rejects numbers that f cannot work with.
+func everyNumber(fn string, v Value, f func(float64) float64, check func(float64) error) (Value, error) {
+	one := func(x float64) (float64, error) {
+		if check != nil {
+			if err := check(x); err != nil {
+				return 0, err
+			}
+		}
+		return f(x), nil
+	}
+	switch x := v.(type) {
+	case float64:
+		y, err := one(x)
+		if err != nil {
+			return nil, err
+		}
+		return y, nil
+	case *Tensor:
+		if x.tracked() {
+			return nil, noGradient(fn)
+		}
+		result := &Tensor{Shape: x.Shape, Data: make([]float64, len(x.Data))}
+		for i, n := range x.Data {
+			y, err := one(n)
+			if err != nil {
+				return nil, err
+			}
+			result.Data[i] = y
+		}
+		return result, nil
+	}
+	return nil, fmt.Errorf("%s needs a number or a tensor, but got %s", fn, typeName(v))
+}
+
+// The standard functions of neural networks.
+
+// relu keeps positive numbers and turns negative ones into 0.
+func relu(x float64) float64 { return math.Max(0, x) }
+
+// sigmoid squeezes any number into the range 0 to 1.
+func sigmoid(x float64) float64 { return 1 / (1 + math.Exp(-x)) }
+
+// positive is the check for log, which only works on numbers greater than 0.
+func positive(x float64) error {
+	if !(x > 0) {
+		return fmt.Errorf("log needs numbers greater than 0, but got %s", show(x))
+	}
+	return nil
+}
+
+// numberBuiltin makes a built-in that works on a number or on every number of a tensor.
+func numberBuiltin(name string, f func(float64) float64, check func(float64) error) builtin {
+	return builtin{1, 1, func(a []Value) (Value, bool, error) {
+		v, err := everyNumber(name, a[0], f, check)
+		if err != nil {
+			return nil, false, err
+		}
+		return v, true, nil
+	}}
+}
+
+// shapeBuiltin makes a built-in such as zeros, which builds a tensor from a shape.
+func shapeBuiltin(name string, next func() float64) builtin {
+	return builtin{1, 1, func(a []Value) (Value, bool, error) {
+		t, err := filledTensor(name, a[0], next)
+		if err != nil {
+			return nil, false, err
+		}
+		return t, true, nil
+	}}
+}
+
+// needTensor checks that an argument of a built-in is a tensor.
+func needTensor(fn string, v Value) (*Tensor, error) {
+	t, ok := v.(*Tensor)
+	if !ok {
+		return nil, fmt.Errorf("%s needs a tensor, but got %s (make one with tensor([...]))", fn, typeName(v))
+	}
+	return t, nil
+}
+```
+
+## autograd.go
+```go
+package main
+
+// Automatic gradients: how a model finds out which way to change its weights.
+//
+// A GRADIENT says how much the result (usually the error) changes when a number changes a
+// tiny bit. GAN works it out like this:
+//
+//  1. learnable(w) marks a tensor we want gradients for.
+//  2. Every calculation that uses it remembers its inputs, and how to pass a gradient
+//     back to them. The result remembers this too, so a chain of history builds up.
+//  3. backward(loss) starts at the end with gradient 1 and walks the history in reverse,
+//     handing each input its share (this is the "chain rule").
+//
+// A tensor with history is called "tracked". Every operation that cannot pass gradients back
+// yet must REFUSE tracked tensors (see noGradient). Ignoring them would give wrong gradients
+// without any sign that something was wrong.
+
+import "fmt"
+
+// trace is the history a tracked tensor carries.
+type trace struct {
+	leaf   bool      // true for a tensor made by learnable(): the history starts here
+	inputs []*Tensor // the tracked tensors this one was calculated from
+	// back takes the gradient of the result and returns the gradient for each of the inputs
+	back func(g []float64) [][]float64
+
+	grad *Tensor // leaf only: the gradient found by backward
+	run  int     // leaf only: which backward found it
+}
+
+// backwardRuns counts the calls to backward, so grad never hands out an out-of-date answer.
+var backwardRuns int
+
+// tracked says whether a tensor has history.
+func (t *Tensor) tracked() bool { return t.track != nil }
+
+// plain is the same tensor without any history.
+func (t *Tensor) plain() *Tensor { return &Tensor{Shape: t.Shape, Data: t.Data} }
+
+// isScalar says whether t is a single number with no dimensions, shown as tensor(5).
+func (t *Tensor) isScalar() bool { return len(t.Shape) == 0 }
+
+// learnable makes the starting point of a history. It is always a new tensor, so any
+// older history is left behind.
+func learnable(t *Tensor) *Tensor {
+	return &Tensor{Shape: t.Shape, Data: t.Data, track: &trace{leaf: true}}
+}
+
+// noGradient is the error for an operation that cannot pass gradients back yet.
+func noGradient(operation string) error {
+	return fmt.Errorf("gradients for %s are not supported yet (it was used on a learnable tensor)", operation)
+}
+
+// record gives result its history. inputs are the operands (nil for a plain number), and
+// backs[i] works out the gradient of inputs[i]. Only tracked inputs are remembered; if
+// there are none, the result stays a plain tensor.
+func record(result *Tensor, inputs []*Tensor, backs []func(g []float64) []float64) {
+	kept := []*Tensor{}
+	keptBacks := []func(g []float64) []float64{}
+	for i, in := range inputs {
+		if in != nil && in.tracked() {
+			kept = append(kept, in)
+			keptBacks = append(keptBacks, backs[i])
+		}
+	}
+	if len(kept) == 0 {
+		return
+	}
+	result.track = &trace{inputs: kept, back: func(g []float64) [][]float64 {
+		out := make([][]float64, len(keptBacks))
+		for i, f := range keptBacks {
+			out[i] = f(g)
+		}
+		return out
+	}}
+}
+
+// fitTo shapes a gradient to its input. A single number that was used for every position
+// receives all of those gradients added up.
+func fitTo(input *Tensor, g []float64) []float64 {
+	if input.isScalar() && len(g) > 1 {
+		total := 0.0
+		for _, x := range g {
+			total += x
+		}
+		return []float64{total}
+	}
+	return g
+}
+
+// recordMath gives the result of + - * its history. a or b is nil when that side was a
+// plain number; x and y read the value each side had at position i.
+func recordMath(op string, result, a, b *Tensor, x, y func(i int) float64) {
+	// back builds the function for one side: share(g, i) is that side's gradient at i
+	back := func(input *Tensor, share func(g []float64, i int) float64) func([]float64) []float64 {
+		return func(g []float64) []float64 {
+			out := make([]float64, len(g))
+			for i := range g {
+				out[i] = share(g, i)
+			}
+			return fitTo(input, out)
+		}
+	}
+	var left, right func(g []float64, i int) float64
+	switch op {
+	case "+": // both sides pass the gradient straight through
+		left = func(g []float64, i int) float64 { return g[i] }
+		right = left
+	case "-": // the right side gets it with the sign flipped
+		left = func(g []float64, i int) float64 { return g[i] }
+		right = func(g []float64, i int) float64 { return -g[i] }
+	case "*": // each side's gradient is multiplied by the OTHER side's value
+		left = func(g []float64, i int) float64 { return g[i] * y(i) }
+		right = func(g []float64, i int) float64 { return g[i] * x(i) }
+	}
+	record(result, []*Tensor{a, b}, []func([]float64) []float64{back(a, left), back(b, right)})
+}
+
+// recordMatmul: for C = matmul(A, B) with gradient G,
+// A gets matmul(G, transpose(B)) and B gets matmul(transpose(A), G).
+func recordMatmul(result, a, b *Tensor) {
+	// multiply is matmul for shapes that are already known to fit
+	multiply := func(x, y *Tensor) []float64 {
+		product, _ := matmul(x.plain(), y.plain())
+		return product.Data
+	}
+	flip := func(t *Tensor) *Tensor {
+		flipped, _ := transpose(t.plain())
+		return flipped
+	}
+	asResult := func(g []float64) *Tensor { return &Tensor{Shape: result.Shape, Data: g} }
+	record(result, []*Tensor{a, b}, []func([]float64) []float64{
+		func(g []float64) []float64 { return multiply(asResult(g), flip(b)) },
+		func(g []float64) []float64 { return multiply(flip(a), asResult(g)) },
+	})
+}
+
+// total adds up a tensor (divide is 1 for sum, or the count for mean). A plain tensor gives
+// a plain number. A tracked one gives a one-number tensor, which can keep the history.
+func total(t *Tensor, divide float64) Value {
+	sum := 0.0
+	for _, x := range t.Data {
+		sum += x
+	}
+	if !t.tracked() {
+		return sum / divide
+	}
+	result := &Tensor{Shape: []int{}, Data: []float64{sum / divide}}
+	record(result, []*Tensor{t}, []func([]float64) []float64{
+		func(g []float64) []float64 { // every input number gets the same share
+			out := make([]float64, len(t.Data))
+			for i := range out {
+				out[i] = g[0] / divide
+			}
+			return out
+		},
+	})
+	return result
+}
+
+// backward works out the gradient of loss for every learnable tensor it was made from.
+func backward(loss *Tensor) error {
+	if !loss.tracked() {
+		return fmt.Errorf("backward needs a result calculated from a learnable tensor")
+	}
+	if len(loss.Data) != 1 {
+		return fmt.Errorf("backward needs a single number to start from, but got shape %s (use sum or mean first)", shapeText(loss.Shape))
+	}
+
+	// put the history in order: every tensor comes after the tensors it was made from
+	order := []*Tensor{}
+	seen := map[*Tensor]bool{}
+	var visit func(t *Tensor)
+	visit = func(t *Tensor) {
+		if seen[t] {
+			return
+		}
+		seen[t] = true
+		for _, in := range t.track.inputs {
+			visit(in)
+		}
+		order = append(order, t)
+	}
+	visit(loss)
+
+	backwardRuns++
+	// walk it from the end. A tensor's gradient is complete when we reach it, because
+	// everything that used it comes later in the order.
+	grads := map[*Tensor][]float64{loss: {1}}
+	for i := len(order) - 1; i >= 0; i-- {
+		t := order[i]
+		g := grads[t]
+		if t.track.leaf {
+			t.track.grad = &Tensor{Shape: t.Shape, Data: g}
+			t.track.run = backwardRuns
+			continue
+		}
+		for j, share := range t.track.back(g) {
+			in := t.track.inputs[j]
+			if grads[in] == nil {
+				grads[in] = make([]float64, len(in.Data))
+			}
+			for k, x := range share {
+				grads[in][k] += x // a tensor used twice adds up both shares
+			}
+		}
+		delete(grads, t) // not needed any more
+	}
+	return nil
+}
+
+// gradientOf returns the gradient that the last backward found for t.
+func gradientOf(t *Tensor) (*Tensor, error) {
+	if t.track == nil || !t.track.leaf {
+		return nil, fmt.Errorf("grad only works on a tensor made with learnable(...); after changing a weight, wrap it in learnable(...) again")
+	}
+	if backwardRuns == 0 {
+		return nil, fmt.Errorf("there is no gradient yet: call backward(loss) first")
+	}
+	if t.track.run != backwardRuns {
+		return nil, fmt.Errorf("this tensor was not used by the last backward, so it has no gradient")
+	}
+	return t.track.grad, nil
+}
+```

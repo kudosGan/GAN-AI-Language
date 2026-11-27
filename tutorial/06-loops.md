@@ -129,10 +129,61 @@ for row in 1 to 3 {
 
 That prints a small multiplication table.
 
-## No break (yet)
+## break: stop the loop early
 
-Some languages have `break` to leave a loop early. GAN does not yet. Inside a function you can leave a
-loop at any time with `return` (Lesson 7). Otherwise use a `while` with a good question.
+`break` leaves the loop at once. The program carries on after the loop. Here we look for the first
+number that 7 divides, and stop as soon as we find it:
+
+```gan
+for n in 50 to 100 {
+    if n % 7 == 0 {
+        print("found " + n)
+        break
+    }
+}
+print("finished")
+```
+
+```output
+found 56
+finished
+```
+
+## continue: skip to the next pass
+
+`continue` skips the rest of this pass and goes on with the next one:
+
+```gan
+for n in 1 to 5 {
+    if n == 3 {
+        continue
+    }
+    print(n)
+}
+```
+
+```output
+1
+2
+4
+5
+```
+
+In a `while` loop, change your counter **before** `continue`. If `continue` skips the line that changes
+it, the loop never ends.
+
+In a loop inside another loop, `break` and `continue` only affect the **inner** one. Using either
+outside a loop is an error:
+
+```gan
+print("start")
+break
+```
+
+```output
+Syntax error on line 2: "break" can only be used inside a loop
+    2 | break
+```
 
 ## Exercises
 

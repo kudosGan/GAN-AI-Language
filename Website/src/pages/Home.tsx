@@ -1,7 +1,8 @@
-// Home page: hero, the three feature cards, and a link to the lessons.
+// Home page: hero, the three feature cards, what's new, and a link to the lessons.
 import Hero from "../components/Hero";
 import FeatureCard from "../components/FeatureCard";
-import { FEATURES } from "../data/content";
+import Showcase from "../components/Showcase";
+import { FEATURES, LESSONS } from "../data/content";
 import "./Page.css";
 
 export default function Home() {
@@ -15,8 +16,9 @@ export default function Home() {
             <FeatureCard key={f.title} title={f.title} text={f.text} />
           ))}
         </div>
+        <Showcase />
         <p className="page-cta">
-          New to programming? <a href="#learn">Start with the 14-lesson tutorial.</a>
+          New to programming? <a href="#learn">Start with the {LESSONS.length}-lesson tutorial.</a>
         </p>
       </div>
     </>

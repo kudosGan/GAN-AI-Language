@@ -15,7 +15,7 @@ Run **GAN-Setup.exe** and click **Install**. Then open a **new** terminal window
 gan --version
 ```
 
-You should see `GAN 2.0`. If you are building GAN from its source instead, `go build -o gan.exe .`
+You should see `GAN 0.2 (beta)`. If you are building GAN from its source instead, `go build -o gan.exe .`
 makes the same `gan.exe`.
 
 ## Your first program

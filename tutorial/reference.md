@@ -16,6 +16,7 @@ A one-page reminder of everything GAN can do. For explanations, see the lessons.
 | text | `"hello"` | double quotes only; no way to put a `"` inside; may span lines |
 | bool | `true`, `false` | |
 | list | `[1, "a", [2]]` | positions start at 0; shared, not copied |
+| tensor | `tensor([[1, 2], [3, 4]])` | grid of numbers for AI; never changes |
 
 ## Variables
 
@@ -68,7 +69,8 @@ for item in list {      // each item of a list, or each letter of text
 }
 ```
 
-Conditions must be true or false. There is no `break` or `continue` yet.
+Conditions must be true or false. Inside a loop, `break` stops the loop and `continue` skips to its next pass.
+Both affect only the nearest loop.
 
 ## Functions
 
@@ -110,16 +112,51 @@ for x in l { ... }
 | `contains(list or text, thing)` | true/false |
 | `str(x)` | x as text |
 | `num(text)` | text as a number |
-| `typeof(x)` | `"number"`, `"text"`, `"bool"`, `"list"` or `"module"` |
+| `typeof(x)` | `"number"`, `"text"`, `"bool"`, `"list"`, `"tensor"` or `"module"` |
 | `input()` / `input("question ")` | one typed line, as text |
 | `abs(x)` `floor(x)` `round(x)` `sqrt(x)` | math |
 | `pow(base, exp)` `min(a, b)` `max(a, b)` | math |
 | `upper(text)` `lower(text)` | change case |
 | `fail("message")` | stop the program with your own error |
 
+## Tensors
+
+| Code | Gives |
+|---|---|
+| `tensor(list)` | a tensor from a list of numbers, or of equal-length rows |
+| `shape(t)` | its size in each direction, e.g. `[2, 3]` |
+| `sum(t)` | all its numbers added up |
+| `matmul(a, b)` | matrix multiplication of two tables; columns of `a` must equal rows of `b` |
+| `a + b`, `a - b`, `a * b`, `a / b` | position by position (same shape) |
+| `t * 10` and the like | the number is used for every position |
+| `-t` | every sign flipped |
+| `t[0]`, `t[1][2]` | a row or a number, counting from 0 (read only) |
+| `transpose(t)` | a table with rows and columns swapped |
+| `mean(t)` | the average of all its numbers |
+| `zeros(shape)` `ones(shape)` | filled with 0 or 1, e.g. `zeros([2, 3])` |
+| `random(shape)` | random numbers from 0 up to (not including) 1 |
+| `randomNormal(shape)` | random numbers centred on 0 (normal distribution, spread 1) |
+| `seed(n)` | makes the random numbers repeat |
+| `relu(x)` `sigmoid(x)` `tanh(x)` `exp(x)` `log(x)` | on a number or every number of a tensor |
+
+A function you write with one of these names is used instead of the built-in one.
+
+## Gradients
+
+| Code | Gives |
+|---|---|
+| `learnable(t)` | a tensor whose gradient you want |
+| `backward(loss)` | works out gradients from a one-number result (no value) |
+| `grad(w)` | the gradient of `w` from the last `backward`, same shape as `w` |
+| `item(t)` | the plain number inside a one-number tensor |
+
+Gradients work through `+` `-` `*`, minus signs, `matmul`, `sum` and `mean`. Other tensor maths and `[ ]` give
+an error on learnable calculations. On those, `sum` and `mean` give a one-number tensor such as `tensor(20)`.
+After changing a weight, wrap it again: `w = learnable(w - 0.05 * grad(w))`.
+
 ## Types
 
-`number`, `text`, `bool`, `list`, `any`. Notes are optional and checked while the program runs: when a variable is
+`number`, `text`, `bool`, `list`, `tensor`, `any`. Notes are optional and checked while the program runs: when a variable is
 made or changed, when a function is called, and when it returns.
 
 ## Libraries
@@ -145,5 +182,5 @@ An error inside a library says `in name.gan` and shows that library's line.
 
 ## Not in GAN yet
 
-`break` / `continue`, dictionaries, `\n` and other escapes inside text, several things in one `print`, `+=`,
-one-line `if`, random numbers, reading files, concurrency.
+Dictionaries, `\n` and other escapes inside text, several things in one `print`, `+=`,
+one-line `if`, reading files, concurrency, gradients for `/`, `relu` and other functions.

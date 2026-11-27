@@ -8,6 +8,7 @@ Every value has a **type**: what kind of thing it is.
 | `text` | `"hello"` |
 | `bool` | `true`, `false` |
 | `list` | `[1, 2, 3]` |
+| `tensor` | `tensor([1, 2, 3])` (Lesson 14) |
 
 `typeof(x)` tells you the type of a value:
 
@@ -160,7 +161,7 @@ let x: integer = 5
 ```
 
 ```output
-Syntax error on line 1: unknown type "integer" (the types are: number, text, bool, list, any)
+Syntax error on line 1: unknown type "integer" (the types are: number, text, bool, list, tensor, any)
     1 | let x: integer = 5
 ```
 

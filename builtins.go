@@ -58,6 +58,142 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("len needs a list or text")
 	}},
 
+	// ---- tensors (the code that does the work is in tensor.go) ----
+
+	// tensor(list): make a tensor from a (nested) list of numbers
+	"tensor": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := newTensor(a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return t, true, nil
+	}},
+
+	// shape(t): the size of each dimension, as a list
+	"shape": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("shape", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		list := &List{Items: []Value{}}
+		for _, n := range t.Shape {
+			list.Items = append(list.Items, float64(n))
+		}
+		return list, true, nil
+	}},
+
+	// sum(t): all the numbers of a tensor added up
+	"sum": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("sum", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return total(t, 1), true, nil
+	}},
+
+	// matmul(a, b): matrix multiplication
+	"matmul": {2, 2, func(a []Value) (Value, bool, error) {
+		x, err := needTensor("matmul", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		y, err := needTensor("matmul", a[1])
+		if err != nil {
+			return nil, false, err
+		}
+		result, err := matmul(x, y)
+		if err != nil {
+			return nil, false, err
+		}
+		return result, true, nil
+	}},
+
+	// new tensors of a given shape, e.g. zeros([2, 3])
+	"zeros": shapeBuiltin("zeros", func() float64 { return 0 }),
+	"ones":  shapeBuiltin("ones", func() float64 { return 1 }),
+	// random: from 0 up to (not including) 1. randomNormal: centred on 0, mostly close to it.
+	"random":       shapeBuiltin("random", func() float64 { return random.Float64() }),
+	"randomNormal": shapeBuiltin("randomNormal", func() float64 { return random.NormFloat64() }),
+
+	// seed(n): make the random numbers repeat (gives no value back)
+	"seed": {1, 1, func(a []Value) (Value, bool, error) {
+		return nil, false, setSeed(a[0])
+	}},
+
+	// mean(t): the average of all the numbers
+	"mean": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("mean", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return total(t, float64(len(t.Data))), true, nil // a tensor is never empty
+	}},
+
+	// ---- automatic gradients (the code that does the work is in autograd.go) ----
+
+	// learnable(t): a tensor whose gradient we want
+	"learnable": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("learnable", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return learnable(t), true, nil
+	}},
+
+	// backward(loss): work out the gradients (gives no value back)
+	"backward": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("backward", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		return nil, false, backward(t)
+	}},
+
+	// grad(w): the gradient of w found by the last backward
+	"grad": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("grad", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		g, err := gradientOf(t)
+		if err != nil {
+			return nil, false, err
+		}
+		return g, true, nil
+	}},
+
+	// item(t): the number inside a tensor that holds just one
+	"item": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("item", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		if len(t.Data) != 1 {
+			return nil, false, fmt.Errorf("item needs a tensor with exactly one number, but got shape %s", shapeText(t.Shape))
+		}
+		return t.Data[0], true, nil
+	}},
+
+	// transpose(t): swap rows and columns
+	"transpose": {1, 1, func(a []Value) (Value, bool, error) {
+		t, err := needTensor("transpose", a[0])
+		if err != nil {
+			return nil, false, err
+		}
+		result, err := transpose(t)
+		if err != nil {
+			return nil, false, err
+		}
+		return result, true, nil
+	}},
+
+	// these work on one number or on every number of a tensor
+	"relu":    numberBuiltin("relu", relu, nil),
+	"sigmoid": numberBuiltin("sigmoid", sigmoid, nil),
+	"tanh":    numberBuiltin("tanh", math.Tanh, nil),
+	"exp":     numberBuiltin("exp", math.Exp, nil),
+	"log":     numberBuiltin("log", math.Log, positive),
+
 	// push(list, item): add an item to the end of a list (gives no value back)
 	"push": {2, 2, func(a []Value) (Value, bool, error) {
 		list, ok := a[0].(*List)
@@ -87,7 +223,7 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("%s", show(a[0]))
 	}},
 
-	// typeof(x): "number", "text", "bool", "list" or "module"
+	// typeof(x): "number", "text", "bool", "list", "tensor" or "module"
 	"typeof": {1, 1, func(a []Value) (Value, bool, error) {
 		return typeName(a[0]), true, nil
 	}},

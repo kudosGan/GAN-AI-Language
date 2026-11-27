@@ -406,11 +406,91 @@
     "error_examples": []
   },
   {
+    "step": "27",
+    "title": "break and continue",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "Loops can now be stopped early with break, or skip to their next pass with continue. Both affect only the nearest loop.",
+    "learned": [
+      "The lexer did not change: break and continue are ordinary words that the parser treats specially.",
+      "The parser counts how deep it is inside loops, so using break or continue outside a loop is a syntax error before anything runs. A function body starts the count again at zero.",
+      "In the interpreter they travel out of nested blocks the same way return does, carrying a signal that the nearest loop catches.",
+      "Because the parser already checked the place, a signal can never escape from a function or from the program."
+    ],
+    "examples": [
+      "breaks.gan"
+    ],
+    "error_examples": [
+      "breaks_error.gan"
+    ]
+  },
+  {
+    "step": "28",
+    "title": "Tensors: the first step to AI",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "GAN's goal is to be a language designed for AI, named after generative adversarial networks. This step builds tensors (grids of numbers) into the language: tensor, shape, sum, matmul and + - * / on whole tensors.",
+    "learned": [
+      "A tensor is stored as a shape, such as [2, 3], plus one flat list of numbers, row after row.",
+      "Math between two tensors works position by position and needs equal shapes; a single number is used for every position.",
+      "matmul is different: each answer is a row of the first table times a column of the second, added up. It is the core operation of neural networks.",
+      "Shape mistakes are very common in AI code, so the error shows the line and both shapes in plain words.",
+      "A tensor never changes after it is made; every operation gives a new one. It uses only Go's standard library and runs on the CPU."
+    ],
+    "examples": [
+      "tensors.gan"
+    ],
+    "error_examples": [
+      "tensors_error.gan"
+    ]
+  },
+  {
+    "step": "29",
+    "title": "Tools for learning",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "Added what a model needs before it can learn: random tensors with a repeatable seed, zeros and ones, reading with t[0], transpose, -t, mean, and the functions relu, sigmoid, tanh, exp and log.",
+    "learned": [
+      "A model starts from random weights. A seed makes random numbers repeat, which makes experiments and bugs repeatable.",
+      "random gives numbers from 0 up to 1; randomNormal gives numbers centred on 0.",
+      "The neural network functions work on one number or on every number of a tensor, so no loops are needed.",
+      "A shape is checked before memory is set aside, with a limit of 10 million numbers.",
+      "A test cannot print random values and expect them, so it checks that the same seed repeats them."
+    ],
+    "examples": [
+      "tensortools.gan"
+    ],
+    "error_examples": [
+      "tensortools_error.gan"
+    ]
+  },
+  {
+    "step": "30",
+    "title": "First automatic gradients",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "GAN can now work out gradients: learnable, backward, grad and item, for + - * , minus signs, matmul, sum and mean. A tiny model written in GAN learns to double a number.",
+    "learned": [
+      "A gradient says how the loss changes when a weight changes a tiny bit; moving the weight the opposite way makes the loss smaller.",
+      "Each calculation on a learnable tensor remembers its inputs. backward walks that history in reverse, which is the chain rule.",
+      "A value that is used twice receives both shares of gradient, added together.",
+      "Operations that cannot pass gradients back yet give an error. Silently ignoring them would give wrong gradients with no warning.",
+      "grad only answers for tensors used by the last backward, so an old gradient is never handed out by mistake.",
+      "A go test compares GAN's gradients with a second method: change one input a tiny bit and measure how the result changes."
+    ],
+    "examples": [
+      "autograd.gan"
+    ],
+    "error_examples": [
+      "autograd_error.gan"
+    ]
+  },
+  {
     "step": "later",
-    "title": "After the tutorial: more ideas",
+    "title": "AI roadmap and other ideas",
     "status": "planned",
     "date": "",
-    "summary": "Ideas still to come: concurrency (from Go), break and continue, dictionaries, text escapes, random numbers, reading files, and a package download system.",
+    "summary": "Next for AI: automatic gradients, a neural network library, training a tiny generative adversarial network written in GAN, agentic AI with local models and tools, and speed (several processor cores, later a GPU). Other ideas: concurrency (from Go), dictionaries, text escapes, random numbers, reading files, and a package download system.",
     "learned": [],
     "examples": [],
     "error_examples": []

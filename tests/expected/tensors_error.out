@@ -1,0 +1,2 @@
+Runtime error on line 3: matmul shapes do not fit: [1, 3] and [1, 3] (the first has 3 columns, so the second needs 3 rows, but it has 1)
+    3 | print(matmul(x, w))

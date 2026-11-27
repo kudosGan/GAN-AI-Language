@@ -1,0 +1,2 @@
+Runtime error on line 2: index 2 is out of range (the tensor has 2 items in its first dimension)
+    2 | print(t[2])

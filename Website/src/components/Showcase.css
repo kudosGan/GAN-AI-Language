@@ -1,0 +1,18 @@
+/* Showcase: samples of the latest version */
+.showcase { margin-top: 48px; }
+.showcase-intro { color: var(--muted); }
+.showcase-item { margin-top: 28px; }
+.showcase-item h3 { margin-bottom: 4px; }
+.showcase-item > p { margin-top: 0; }
+.showcase-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.showcase-pair > * { min-width: 0; }                      /* lets long lines scroll inside the box */
+.showcase-pair .codebox code { font-size: 0.85rem; }      /* a little smaller to fit two boxes */
+.showcase-pair > *:last-child code { white-space: pre-wrap; } /* wrap long output such as errors */
+.showcase-note {                                           /* the honest "this is a beta" box */
+  margin-top: 28px;
+  padding: 14px 18px;
+  background: var(--soft);
+  border-left: 4px solid var(--yellow);
+  border-radius: 4px;
+}
+@media (max-width: 860px) { .showcase-pair { grid-template-columns: 1fr; } }  /* stack on small screens */

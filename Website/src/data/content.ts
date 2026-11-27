@@ -2,7 +2,7 @@
 // facts come from the real GAN files, wording from the AI. Edit by hand if you like.
 
 export const REPO_URL = "https://github.com/kudosGan/GAN-AI-Language";
-export const VERSION = "2.0";
+export const VERSION = "0.2 beta";
 
 export const SAMPLE_CODE = `// Ask a name and greet it
 let name = input("Your name? ")
@@ -41,7 +41,9 @@ export const LESSONS = [
   "Libraries",
   "Types",
   "When things go wrong",
-  "Projects"
+  "Projects",
+  "Tensors",
+  "How a model learns"
 ];
 
 export const LIBRARIES = [

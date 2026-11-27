@@ -29,7 +29,8 @@ Copy-Item (Join-Path $root 'libs') (Join-Path $payload 'libs') -Recurse
 $examples = Join-Path $payload 'examples'
 New-Item -ItemType Directory -Force -Path $examples | Out-Null
 foreach ($n in 'hello', 'var', 'comments', 'math', 'parens', 'decimals', 'strings', 'if', 'elseif', 'logic',
-               'while', 'for', 'func', 'scope', 'final', 'lists', 'builtins', 'types', 'imports') {
+               'while', 'for', 'func', 'scope', 'final', 'lists', 'builtins', 'types', 'imports',
+               'breaks', 'tensors', 'tensortools', 'autograd') {
     $f = Join-Path $root "$n.gan"
     if (Test-Path $f) { Copy-Item $f $examples }
 }
@@ -49,8 +50,8 @@ Copy-Item (Join-Path $root 'gan-icon.svg') $icons
 Copy-Item (Join-Path $root 'vscode-gan\gan-seti.vsix') $icons
 
 @'
-GAN 2.0
-=======
+GAN 0.2 (beta)
+==============
 
 Open a NEW terminal window, then:
 
