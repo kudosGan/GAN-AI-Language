@@ -1,7 +1,7 @@
 // All the words and lists shown on the site. WRITTEN BY the content-writer agent:
 // facts come from the real GAN files, wording from the AI. Edit by hand if you like.
 
-export const REPO_URL = "https://github.com/YOUR-NAME/GAN";
+export const REPO_URL = "https://github.com/kudosGan/GAN-AI-Language";
 export const VERSION = "2.0";
 
 export const SAMPLE_CODE = `// Ask a name and greet it
