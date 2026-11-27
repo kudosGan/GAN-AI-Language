@@ -29,7 +29,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $AppName = 'GAN'
-$AppVersion = '0.2 beta'
+$AppVersion = '0.3 beta'
 $ScriptPath = $MyInvocation.MyCommand.Path
 $ScriptDir = Split-Path -Parent $ScriptPath
 $UninstallKey = "$RegBase\Microsoft\Windows\CurrentVersion\Uninstall\GAN"

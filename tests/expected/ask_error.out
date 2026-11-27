@@ -1,0 +1,2 @@
+Runtime error on line 2: ask needs text as the question, but got number
+    2 | print(ask(question))

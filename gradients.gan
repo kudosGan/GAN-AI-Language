@@ -1,0 +1,28 @@
+// Gradients for the functions neural networks use.
+let w = learnable(tensor([2, 4]))
+backward(sum(w / 2))
+print(grad(w))
+backward(sum(12 / w))
+print(grad(w))
+
+let r = learnable(tensor([-2, 3]))
+backward(sum(relu(r)))
+print(grad(r))
+
+let z = learnable(tensor([0]))
+backward(sum(sigmoid(z)))
+print(grad(z))
+backward(sum(tanh(z)))
+print(grad(z))
+backward(sum(exp(z)))
+print(grad(z))
+backward(sum(sigmoid(z * 2)))    // two steps chained together
+print(grad(z))
+
+let p = learnable(tensor([1, 4]))
+backward(sum(log(p)))
+print(grad(p))
+
+let m = learnable(tensor([[1, 2], [3, 4]]))
+backward(sum(transpose(m) * tensor([[10, 20], [30, 40]])))
+print(grad(m))

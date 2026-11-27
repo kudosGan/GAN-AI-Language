@@ -150,9 +150,19 @@ A function you write with one of these names is used instead of the built-in one
 | `grad(w)` | the gradient of `w` from the last `backward`, same shape as `w` |
 | `item(t)` | the plain number inside a one-number tensor |
 
-Gradients work through `+` `-` `*`, minus signs, `matmul`, `sum` and `mean`. Other tensor maths and `[ ]` give
-an error on learnable calculations. On those, `sum` and `mean` give a one-number tensor such as `tensor(20)`.
+Gradients work through `+` `-` `*` `/`, minus signs, `matmul`, `transpose`, `sum`, `mean`, `relu`, `sigmoid`,
+`tanh`, `exp` and `log`. Reading with `[ ]` gives an error on learnable calculations. On those, `sum` and `mean` give a one-number tensor such as `tensor(20)`.
 After changing a weight, wrap it again: `w = learnable(w - 0.05 * grad(w))`.
+
+## AI models
+
+| Code | Gives |
+|---|---|
+| `ask(question)` | the answer of the model `qwen2.5:7b`, as text |
+| `ask(question, model)` | the answer of the model you name |
+
+Needs Ollama running on this computer. GAN connects only to it, waits up to 5 minutes, and never runs what a
+model writes. Each `ask` stands alone: the model remembers nothing. Answers can be wrong and can differ each time.
 
 ## Types
 
@@ -183,4 +193,4 @@ An error inside a library says `in name.gan` and shows that library's line.
 ## Not in GAN yet
 
 Dictionaries, `\n` and other escapes inside text, several things in one `print`, `+=`,
-one-line `if`, reading files, concurrency, gradients for `/`, `relu` and other functions.
+one-line `if`, reading files, concurrency, gradients through `[ ]`.

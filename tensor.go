@@ -158,10 +158,6 @@ func tensorMath(op string, left, right Value) (Value, error) {
 		return nil, fmt.Errorf("tensor math needs two tensors, or a tensor and a number")
 	}
 
-	if op == "/" && ((aIsTensor && a.tracked()) || (bIsTensor && b.tracked())) {
-		return nil, noGradient("/")
-	}
-
 	like := a // the tensor that gives the result its shape
 	if !aIsTensor || (a.isScalar() && bIsTensor) {
 		like = b
@@ -240,9 +236,6 @@ func (t *Tensor) item(i int) Value {
 
 // transpose swaps the rows and columns of a table.
 func transpose(t *Tensor) (*Tensor, error) {
-	if t.tracked() {
-		return nil, noGradient("transpose")
-	}
 	if len(t.Shape) != 2 {
 		return nil, fmt.Errorf("transpose needs a table (2 dimensions), but got shape %s", shapeText(t.Shape))
 	}
@@ -252,6 +245,9 @@ func transpose(t *Tensor) (*Tensor, error) {
 		for c := 0; c < cols; c++ {
 			result.Data[c*rows+r] = t.Data[r*cols+c]
 		}
+	}
+	if t.tracked() {
+		recordTranspose(result, t)
 	}
 	return result, nil
 }
@@ -302,8 +298,8 @@ func setSeed(v Value) error {
 }
 
 // everyNumber applies f to a single number, or to every number of a tensor.
-// check (which may be nil) rejects numbers that f cannot work with.
-func everyNumber(fn string, v Value, f func(float64) float64, check func(float64) error) (Value, error) {
+// check (which may be nil) rejects numbers that f cannot work with. slope is used for gradients.
+func everyNumber(fn string, v Value, f func(float64) float64, slope func(x, y float64) float64, check func(float64) error) (Value, error) {
 	one := func(x float64) (float64, error) {
 		if check != nil {
 			if err := check(x); err != nil {
@@ -320,9 +316,6 @@ func everyNumber(fn string, v Value, f func(float64) float64, check func(float64
 		}
 		return y, nil
 	case *Tensor:
-		if x.tracked() {
-			return nil, noGradient(fn)
-		}
 		result := &Tensor{Shape: x.Shape, Data: make([]float64, len(x.Data))}
 		for i, n := range x.Data {
 			y, err := one(n)
@@ -330,6 +323,9 @@ func everyNumber(fn string, v Value, f func(float64) float64, check func(float64
 				return nil, err
 			}
 			result.Data[i] = y
+		}
+		if x.tracked() {
+			recordEach(result, x, slope)
 		}
 		return result, nil
 	}
@@ -353,9 +349,9 @@ func positive(x float64) error {
 }
 
 // numberBuiltin makes a built-in that works on a number or on every number of a tensor.
-func numberBuiltin(name string, f func(float64) float64, check func(float64) error) builtin {
+func numberBuiltin(name string, f func(float64) float64, slope func(x, y float64) float64, check func(float64) error) builtin {
 	return builtin{1, 1, func(a []Value) (Value, bool, error) {
-		v, err := everyNumber(name, a[0], f, check)
+		v, err := everyNumber(name, a[0], f, slope, check)
 		if err != nil {
 			return nil, false, err
 		}

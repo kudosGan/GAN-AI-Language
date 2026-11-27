@@ -73,19 +73,47 @@ round.
 
 ## What works with gradients today
 
-`+`, `-`, `*`, minus signs, `matmul`, `sum` and `mean`.
+`+`, `-`, `*`, `/`, minus signs, `matmul`, `transpose`, `sum`, `mean`, `relu`, `sigmoid`, `tanh`,
+`exp` and `log`.
 
-Other operations give an error on a learnable tensor. GAN refuses instead of giving you a wrong
-gradient:
+Neural networks put functions such as `relu` between their layers. Their gradients show where a change
+still has an effect. `relu` turns negative numbers into 0, so a tiny change to a negative number does
+nothing, and its gradient is 0:
 
 ```gan
-let w = learnable(tensor([1, 2]))
-print(relu(w))
+let w = learnable(tensor([-2, 3]))
+backward(sum(relu(w)))
+print(grad(w))
 ```
 
 ```output
-Runtime error on line 2: gradients for relu are not supported yet (it was used on a learnable tensor)
-    2 | print(relu(w))
+tensor([0, 1])
+```
+
+At exactly 0, GAN uses a gradient of 0 for `relu`.
+
+`sigmoid` reacts most near 0 and hardly at all far from it:
+
+```gan
+let w = learnable(tensor([0, 1000]))
+backward(sum(sigmoid(w)))
+print(grad(w))
+```
+
+```output
+tensor([0.25, 0])
+```
+
+Reading with `[ ]` does not pass gradients back yet. GAN gives an error instead of a wrong gradient:
+
+```gan
+let w = learnable(tensor([1, 2]))
+print(w[0])
+```
+
+```output
+Runtime error on line 2: gradients for [ ] are not supported yet (it was used on a learnable tensor)
+    2 | print(w[0])
 ```
 
 Note that `item(...)` gives a plain number, with no history. Use it for printing and for deciding
@@ -98,4 +126,4 @@ things, not in the middle of a calculation you want gradients for.
    than 0.001?
 3. Change the learning rate to `0.25` and print the loss in each of 3 rounds. What happens?
 
-Back to the [course index](README.md)
+Next: [Lesson 16: Talking to a model](16-talking-to-a-model.md)

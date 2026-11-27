@@ -1,0 +1,2 @@
+let question = 42
+print(ask(question))

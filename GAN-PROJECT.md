@@ -1,9 +1,9 @@
 # GAN programming language: project handoff
 
 ## About
-GAN is my own programming language (file extension .gan), written in Go. It is named after generative adversarial networks; the goal is a language designed for AI and agentic AI. Current version: 0.2 beta. Folder: C:\Desktop\GAN. Go 1.27 on Windows, module `mylang`.
-Build: `go build -o gan.exe .`   Run: `gan file.gan`   Version: `gan --version` (GAN 0.2 (beta))
-Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; builtins.go, modules.go, errors.go, tensor.go, autograd.go; main.go ties them together).
+GAN is my own programming language (file extension .gan), written in Go. It is named after generative adversarial networks; the goal is a language designed for AI and agentic AI. Current version: 0.3 beta. Folder: C:\Desktop\GAN. Go 1.27 on Windows, module `mylang`.
+Build: `go build -o gan.exe .`   Run: `gan file.gan`   Version: `gan --version` (GAN 0.3 (beta))
+Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; builtins.go, modules.go, errors.go, tensor.go, autograd.go, ai.go; main.go ties them together).
 
 ## How I want you to work
 - I'm a beginner in Go and in language design. Go one step at a time.
@@ -14,15 +14,16 @@ Pipeline: Lexer -> Parser -> Interpreter (lexer.go, parser.go, interpreter.go; b
 - After each step works, wait for me to say "next".
 (For steps 15 to 26 I allowed continuing without stopping. Normal rules apply again from here.)
 
-## Progress: steps 1 to 30 are done
+## Progress: steps 1 to 32 are done
 1-6 lexer/parser/print, 7 interpreter, 8 variables, 9 math+precedence, 10 comparisons+if/else, 11 while+assignment,
 12 functions, 13 error messages with line numbers, 14 parentheses+negative numbers, 15 comments (//), 16 decimals,
 17 joining text with +, 18 true/false + and/or/not + else if, 19 scope + final/var, 20 for loops (for i in 1 to 5),
 21 lists, 22 built-in functions, 23 import + libraries (math, text, lists) + % + fail(), 24 optional types (let x: number),
 25 Windows installer (installer\GAN-Setup.exe), 26 tutorial (tutorial\), 27 break/continue, 28 tensors, 29 random/transpose/indexing/network maths,
-30 first automatic gradients. The tutorial now has 16 lessons (0-15).
-Next (only after I say go): Step 31 gradients for / relu sigmoid tanh exp log transpose; then train a two-layer
-network; later a tiny GAN, agent tools with local models, speed. Also missing: dictionaries, text escapes, files.
+30 first automatic gradients.
+31 gradients for / relu sigmoid tanh exp log transpose, 32 ask() for local Ollama models. 17 lessons (0-16).
+Next (only after I say next/go): Step 33 text escapes; then dictionaries + JSON, tools and error handling, an agent loop
+with limits and permissions. Later: train XOR (a scratch trial worked), a tiny GAN network, speed.
 
 ## The language today
 - Values: number (float64), text, bool, list, tensor, module. Blocks use { }. Comments use //.
@@ -31,14 +32,15 @@ network; later a tiny GAN, agent tools with local models, speed. Also missing: d
 - Optional types: number, text, bool, list, tensor, any (checked while running). typeof(x).
 - Built-ins: len push pop str num input abs floor round sqrt pow min max upper lower contains fail typeof.
 - AI built-ins: tensor shape sum mean matmul transpose zeros ones random randomNormal seed relu sigmoid tanh exp log.
-- Gradients: learnable backward grad item (through + - * minus matmul sum mean; other tensor maths refuses).
-- Also run `go test` (autograd_test.go checks gradients numerically).
+- Gradients: learnable backward grad item (through + - * / minus matmul transpose sum mean relu sigmoid tanh exp log; [ ] refuses).
+- AI models: ask(question) / ask(question, model) calls Ollama on this computer only (ai.go).
+- Also run `go test` (gradients checked numerically; ask checked with a fake server). live\ask.gan needs Ollama.
 - Libraries in libs\ (written in GAN): math, text, lists. A path import ("modules/x.gan") is relative to the importing file.
 - Errors: "Syntax error on line N" / "Runtime error on line N" plus the source line; errors in imported files name the file.
 - Scope: each block and each function call has its own scope; functions can see their module's globals. Lists are shared, not copied.
 
 ## Project layout
-- main.go lexer.go parser.go interpreter.go builtins.go modules.go errors.go tensor.go autograd.go: the language
+- main.go lexer.go parser.go interpreter.go builtins.go modules.go errors.go tensor.go autograd.go ai.go: the language
 - Website\: React site published with GitHub Pages; agent\web\: the five website agents
 - libs\*.gan standard libraries; modules\*.gan helper files used by tests
 - *.gan in the root: examples and tests (names ending in _error are meant to fail)
@@ -98,7 +100,7 @@ func main() {
 	}
 
 	if os.Args[1] == "--version" || os.Args[1] == "-v" {
-		fmt.Println("GAN 0.2 (beta)")
+		fmt.Println("GAN 0.3 (beta)")
 		return
 	}
 
@@ -1938,6 +1940,27 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("len needs a list or text")
 	}},
 
+	// ---- AI models (the code that does the work is in ai.go) ----
+
+	// ask(question) or ask(question, model): the model's answer, as text
+	"ask": {1, 2, func(a []Value) (Value, bool, error) {
+		question, err := askArgument(a[0], "the question")
+		if err != nil {
+			return nil, false, err
+		}
+		model := defaultModel
+		if len(a) == 2 {
+			if model, err = askArgument(a[1], "the model name"); err != nil {
+				return nil, false, err
+			}
+		}
+		answer, err := askModel(question, model)
+		if err != nil {
+			return nil, false, err
+		}
+		return answer, true, nil
+	}},
+
 	// ---- tensors (the code that does the work is in tensor.go) ----
 
 	// tensor(list): make a tensor from a (nested) list of numbers
@@ -2068,11 +2091,11 @@ var builtins = map[string]builtin{
 	}},
 
 	// these work on one number or on every number of a tensor
-	"relu":    numberBuiltin("relu", relu, nil),
-	"sigmoid": numberBuiltin("sigmoid", sigmoid, nil),
-	"tanh":    numberBuiltin("tanh", math.Tanh, nil),
-	"exp":     numberBuiltin("exp", math.Exp, nil),
-	"log":     numberBuiltin("log", math.Log, positive),
+	"relu":    numberBuiltin("relu", relu, reluSlope, nil),
+	"sigmoid": numberBuiltin("sigmoid", sigmoid, sigmoidSlope, nil),
+	"tanh":    numberBuiltin("tanh", math.Tanh, tanhSlope, nil),
+	"exp":     numberBuiltin("exp", math.Exp, expSlope, nil),
+	"log":     numberBuiltin("log", math.Log, logSlope, positive),
 
 	// push(list, item): add an item to the end of a list (gives no value back)
 	"push": {2, 2, func(a []Value) (Value, bool, error) {
@@ -2574,10 +2597,6 @@ func tensorMath(op string, left, right Value) (Value, error) {
 		return nil, fmt.Errorf("tensor math needs two tensors, or a tensor and a number")
 	}
 
-	if op == "/" && ((aIsTensor && a.tracked()) || (bIsTensor && b.tracked())) {
-		return nil, noGradient("/")
-	}
-
 	like := a // the tensor that gives the result its shape
 	if !aIsTensor || (a.isScalar() && bIsTensor) {
 		like = b
@@ -2656,9 +2675,6 @@ func (t *Tensor) item(i int) Value {
 
 // transpose swaps the rows and columns of a table.
 func transpose(t *Tensor) (*Tensor, error) {
-	if t.tracked() {
-		return nil, noGradient("transpose")
-	}
 	if len(t.Shape) != 2 {
 		return nil, fmt.Errorf("transpose needs a table (2 dimensions), but got shape %s", shapeText(t.Shape))
 	}
@@ -2668,6 +2684,9 @@ func transpose(t *Tensor) (*Tensor, error) {
 		for c := 0; c < cols; c++ {
 			result.Data[c*rows+r] = t.Data[r*cols+c]
 		}
+	}
+	if t.tracked() {
+		recordTranspose(result, t)
 	}
 	return result, nil
 }
@@ -2718,8 +2737,8 @@ func setSeed(v Value) error {
 }
 
 // everyNumber applies f to a single number, or to every number of a tensor.
-// check (which may be nil) rejects numbers that f cannot work with.
-func everyNumber(fn string, v Value, f func(float64) float64, check func(float64) error) (Value, error) {
+// check (which may be nil) rejects numbers that f cannot work with. slope is used for gradients.
+func everyNumber(fn string, v Value, f func(float64) float64, slope func(x, y float64) float64, check func(float64) error) (Value, error) {
 	one := func(x float64) (float64, error) {
 		if check != nil {
 			if err := check(x); err != nil {
@@ -2736,9 +2755,6 @@ func everyNumber(fn string, v Value, f func(float64) float64, check func(float64
 		}
 		return y, nil
 	case *Tensor:
-		if x.tracked() {
-			return nil, noGradient(fn)
-		}
 		result := &Tensor{Shape: x.Shape, Data: make([]float64, len(x.Data))}
 		for i, n := range x.Data {
 			y, err := one(n)
@@ -2746,6 +2762,9 @@ func everyNumber(fn string, v Value, f func(float64) float64, check func(float64
 				return nil, err
 			}
 			result.Data[i] = y
+		}
+		if x.tracked() {
+			recordEach(result, x, slope)
 		}
 		return result, nil
 	}
@@ -2769,9 +2788,9 @@ func positive(x float64) error {
 }
 
 // numberBuiltin makes a built-in that works on a number or on every number of a tensor.
-func numberBuiltin(name string, f func(float64) float64, check func(float64) error) builtin {
+func numberBuiltin(name string, f func(float64) float64, slope func(x, y float64) float64, check func(float64) error) builtin {
 	return builtin{1, 1, func(a []Value) (Value, bool, error) {
-		v, err := everyNumber(name, a[0], f, check)
+		v, err := everyNumber(name, a[0], f, slope, check)
 		if err != nil {
 			return nil, false, err
 		}
@@ -2892,7 +2911,7 @@ func fitTo(input *Tensor, g []float64) []float64 {
 	return g
 }
 
-// recordMath gives the result of + - * its history. a or b is nil when that side was a
+// recordMath gives the result of + - * / its history. a or b is nil when that side was a
 // plain number; x and y read the value each side had at position i.
 func recordMath(op string, result, a, b *Tensor, x, y func(i int) float64) {
 	// back builds the function for one side: share(g, i) is that side's gradient at i
@@ -2916,6 +2935,9 @@ func recordMath(op string, result, a, b *Tensor, x, y func(i int) float64) {
 	case "*": // each side's gradient is multiplied by the OTHER side's value
 		left = func(g []float64, i int) float64 { return g[i] * y(i) }
 		right = func(g []float64, i int) float64 { return g[i] * x(i) }
+	case "/": // x / y changes by 1/y when x moves, and by -x/(y*y) when y moves
+		left = func(g []float64, i int) float64 { return g[i] / y(i) }
+		right = func(g []float64, i int) float64 { return -g[i] * x(i) / (y(i) * y(i)) }
 	}
 	record(result, []*Tensor{a, b}, []func([]float64) []float64{back(a, left), back(b, right)})
 }
@@ -2938,6 +2960,42 @@ func recordMatmul(result, a, b *Tensor) {
 		func(g []float64) []float64 { return multiply(flip(a), asResult(g)) },
 	})
 }
+
+// recordTranspose: the gradient is simply transposed back.
+func recordTranspose(result, t *Tensor) {
+	record(result, []*Tensor{t}, []func([]float64) []float64{
+		func(g []float64) []float64 {
+			back, _ := transpose(&Tensor{Shape: result.Shape, Data: g}) // result is always a table
+			return back.Data
+		},
+	})
+}
+
+// recordEach is for functions that change each number on its own (relu, sigmoid, ...).
+// slope(x, y) says how fast the function's answer y changes when its input x changes.
+func recordEach(result, t *Tensor, slope func(x, y float64) float64) {
+	record(result, []*Tensor{t}, []func([]float64) []float64{
+		func(g []float64) []float64 {
+			out := make([]float64, len(g))
+			for i := range g {
+				out[i] = g[i] * slope(t.Data[i], result.Data[i])
+			}
+			return out
+		},
+	})
+}
+
+// The slopes of the neural network functions. x is the input and y is the answer.
+func reluSlope(x, _ float64) float64 {
+	if x > 0 {
+		return 1
+	}
+	return 0 // also at exactly 0
+}
+func sigmoidSlope(_, y float64) float64 { return y * (1 - y) }
+func tanhSlope(_, y float64) float64    { return 1 - y*y }
+func expSlope(_, y float64) float64     { return y } // exp is its own slope
+func logSlope(x, _ float64) float64     { return 1 / x }
 
 // total adds up a tensor (divide is 1 for sum, or the count for mean). A plain tensor gives
 // a plain number. A tracked one gives a one-number tensor, which can keep the history.
@@ -3025,5 +3083,133 @@ func gradientOf(t *Tensor) (*Tensor, error) {
 		return nil, fmt.Errorf("this tensor was not used by the last backward, so it has no gradient")
 	}
 	return t.track.grad, nil
+}
+```
+
+## ai.go
+```go
+package main
+
+// Talking to an AI model: ask("question") sends text to Ollama, a program that runs AI
+// models on this computer, and gives back the model's answer as text.
+//
+// Safety rules:
+//   - The address is fixed to this computer. There is no setting to send questions elsewhere,
+//     no proxy is used, and redirects are not followed. (If you set up a "cloud" model inside
+//     Ollama, Ollama itself would send questions online.)
+//   - The answer is only TEXT. GAN never runs anything a model writes.
+//   - GAN stops waiting after a time limit.
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"strings"
+	"time"
+)
+
+// ollamaURL and askTimeout are variables only so that the tests can use a fake server.
+var (
+	ollamaURL  = "http://127.0.0.1:11434/api/generate"
+	askTimeout = 5 * time.Minute
+)
+
+// defaultModel is used when ask is not told which model to use.
+const defaultModel = "qwen2.5:7b"
+
+// maxAnswerBytes stops a runaway answer from using up all the memory.
+const maxAnswerBytes = 10_000_000
+
+// askModel sends one question to a model and returns its answer. Each call stands alone:
+// the model does not remember earlier questions.
+func askModel(question, model string) (string, error) {
+	request, err := json.Marshal(map[string]any{
+		"model":  model,
+		"prompt": question,
+		"stream": false, // send the whole answer at once, not word by word
+	})
+	if err != nil {
+		return "", fmt.Errorf("ask could not prepare the question")
+	}
+
+	client := &http.Client{
+		Timeout:   askTimeout,
+		Transport: &http.Transport{Proxy: nil}, // go straight to this computer
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse // never pass the question on to another address
+		},
+	}
+	response, err := client.Post(ollamaURL, "application/json", bytes.NewReader(request))
+	if err != nil {
+		return "", askFailed(err)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxAnswerBytes+1))
+	if err != nil {
+		return "", askFailed(err)
+	}
+	if len(body) > maxAnswerBytes {
+		return "", fmt.Errorf("ask stopped: the answer from Ollama was too long")
+	}
+
+	// Ollama answers with {"response": "..."} or, when something is wrong, {"error": "..."}
+	var reply struct {
+		Response *string `json:"response"`
+		Error    string  `json:"error"`
+	}
+	readErr := json.Unmarshal(body, &reply)
+
+	if response.StatusCode == http.StatusNotFound && strings.Contains(reply.Error, "not found") {
+		return "", fmt.Errorf("Ollama does not have the model %q; see your models with: ollama list", model)
+	}
+	if reply.Error != "" {
+		return "", fmt.Errorf("Ollama reported an error: %s", reply.Error)
+	}
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Ollama reported an error (status %d)", response.StatusCode)
+	}
+	if readErr != nil || reply.Response == nil {
+		return "", fmt.Errorf("ask got a reply from Ollama that it could not read")
+	}
+	return strings.TrimSpace(*reply.Response), nil
+}
+
+// askFailed turns a network problem into plain words.
+func askFailed(err error) error {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return fmt.Errorf("the model took longer than %s to answer, so ask stopped waiting", waitText(askTimeout))
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) && opErr.Op == "dial" { // could not even connect
+		return fmt.Errorf("ask could not reach Ollama on this computer; check that Ollama is running")
+	}
+	return fmt.Errorf("ask lost the connection to Ollama")
+}
+
+// waitText writes a time limit the way people say it.
+func waitText(d time.Duration) string {
+	if d >= time.Minute {
+		return fmt.Sprintf("%d minutes", int(d.Minutes()))
+	}
+	return d.String()
+}
+
+// askArgument checks that an argument of ask is text that is not empty.
+// what is "the question" or "the model name".
+func askArgument(v Value, what string) (string, error) {
+	s, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("ask needs text as %s, but got %s", what, typeName(v))
+	}
+	if strings.TrimSpace(s) == "" {
+		return "", fmt.Errorf("ask needs text as %s, but it is empty", what)
+	}
+	return s, nil
 }
 ```

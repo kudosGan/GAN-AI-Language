@@ -39,6 +39,22 @@ func TestGradientsMatchNumericalCheck(t *testing.T) {
 	c := tens([]int{3, 2}, -0.6, 1.1, 0.9, 0.2, -1.4, 0.8)
 	k := tens([]int{}, 1.7) // a one-number tensor, used for every position
 
+	// call runs one of GAN's built-in functions, the same way a GAN program would
+	call := func(name string, x *Tensor) *Tensor {
+		v, _, err := builtins[name].run([]Value{x})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v.(*Tensor)
+	}
+	// inputs for the new operations. relu is not checked at exactly 0, where its slope jumps.
+	pos := tens([]int{2, 3}, 0.5, 1.2, 2, 3, 0.7, 0.3)
+	ones := tens([]int{2, 1}, 1, 1)
+	bias := tens([]int{1, 4}, 0.3, -0.2, 0.5, 0.1)
+	w1 := tens([]int{3, 4}, 0.2, -0.5, 0.7, 0.1, -0.3, 0.8, 0.4, -0.6, 0.9, 0.05, -0.2, 0.35)
+	w2 := tens([]int{4, 1}, 0.6, -0.4, 0.25, 0.8)
+	target := tens([]int{2, 1}, 0.2, 0.9)
+
 	cases := []struct {
 		name   string
 		inputs []*Tensor
@@ -66,6 +82,27 @@ func TestGradientsMatchNumericalCheck(t *testing.T) {
 			m := add(p, 4) // the mean of the 2 by 2 result
 			d := math2("-", p, m)
 			return add(math2("*", d, d), 4)
+		}},
+		{"divide, both sides", []*Tensor{a, pos}, func(in []*Tensor) *Tensor { return add(math2("*", math2("/", in[0], in[1]), b), 1) }},
+		{"divide by a number, and a number divided", []*Tensor{pos}, func(in []*Tensor) *Tensor {
+			return add(math2("+", math2("/", in[0], 4.0), math2("/", 3.0, in[0])), 1)
+		}},
+		{"one-number tensor on top", []*Tensor{k, pos}, func(in []*Tensor) *Tensor { return add(math2("/", in[0], in[1]), 1) }},
+		{"one-number tensor underneath", []*Tensor{a, k}, func(in []*Tensor) *Tensor { return add(math2("/", in[0], in[1]), 1) }},
+		{"divided by itself", []*Tensor{pos}, func(in []*Tensor) *Tensor { return add(math2("/", in[0], math2("+", in[0], 1.0)), 1) }},
+		{"relu", []*Tensor{a}, func(in []*Tensor) *Tensor { return add(math2("*", call("relu", in[0]), b), 1) }},
+		{"sigmoid", []*Tensor{a}, func(in []*Tensor) *Tensor { return add(math2("*", call("sigmoid", in[0]), b), 1) }},
+		{"tanh", []*Tensor{a}, func(in []*Tensor) *Tensor { return add(math2("*", call("tanh", in[0]), b), 1) }},
+		{"exp", []*Tensor{a}, func(in []*Tensor) *Tensor { return add(math2("*", call("exp", in[0]), b), 1) }},
+		{"log", []*Tensor{pos}, func(in []*Tensor) *Tensor { return add(math2("*", call("log", in[0]), b), 1) }},
+		{"transpose", []*Tensor{a}, func(in []*Tensor) *Tensor { return add(math2("*", call("transpose", in[0]), c), 1) }},
+		{"two layers", []*Tensor{w1, bias, w2}, func(in []*Tensor) *Tensor {
+			// a is the data: 2 examples with 3 numbers each
+			hidden := call("tanh", math2("+", mul(a, in[0]), mul(ones, in[1])))
+			out := call("sigmoid", mul(call("relu", math2("+", hidden, 2.0)), in[2]))
+			diff := math2("-", out, target)
+			logs := call("log", call("exp", call("transpose", math2("/", out, 2.0))))
+			return add(math2("+", add(math2("*", diff, diff), 2), add(logs, 2)), 1)
 		}},
 	}
 

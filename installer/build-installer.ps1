@@ -30,10 +30,12 @@ $examples = Join-Path $payload 'examples'
 New-Item -ItemType Directory -Force -Path $examples | Out-Null
 foreach ($n in 'hello', 'var', 'comments', 'math', 'parens', 'decimals', 'strings', 'if', 'elseif', 'logic',
                'while', 'for', 'func', 'scope', 'final', 'lists', 'builtins', 'types', 'imports',
-               'breaks', 'tensors', 'tensortools', 'autograd') {
+               'breaks', 'tensors', 'tensortools', 'autograd', 'gradients') {
     $f = Join-Path $root "$n.gan"
     if (Test-Path $f) { Copy-Item $f $examples }
 }
+# ask.gan needs Ollama running on the computer
+Copy-Item (Join-Path $root 'live\ask.gan') $examples
 Copy-Item (Join-Path $root 'modules') (Join-Path $examples 'modules') -Recurse
 
 if (Test-Path (Join-Path $root 'tutorial')) {
@@ -50,7 +52,7 @@ Copy-Item (Join-Path $root 'gan-icon.svg') $icons
 Copy-Item (Join-Path $root 'vscode-gan\gan-seti.vsix') $icons
 
 @'
-GAN 0.2 (beta)
+GAN 0.3 (beta)
 ==============
 
 Open a NEW terminal window, then:

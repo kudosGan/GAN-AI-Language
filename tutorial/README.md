@@ -21,6 +21,7 @@ what the earlier ones taught.
 | 13 | [Projects](13-projects.md) | FizzBuzz, primes, guessing game, calculator... |
 | 14 | [Tensors](14-tensors.md) | `tensor`, `shape`, `sum`, `matmul`: the first step into AI |
 | 15 | [How a model learns](15-learning.md) | `learnable`, `backward`, `grad`, training a tiny model |
+| 16 | [Talking to a model](16-talking-to-a-model.md) | `ask`, using a local AI model with Ollama |
 
 Also here:
 

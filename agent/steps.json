@@ -486,6 +486,45 @@
     ]
   },
   {
+    "step": "31",
+    "title": "Gradients for the network functions",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "Gradients now also pass through division, relu, sigmoid, tanh, exp, log and transpose, so networks with several layers can calculate what to change.",
+    "learned": [
+      "Each operation only needs its own slope rule; backward chains the rules together.",
+      "sigmoid, tanh and exp can work out their slope from their answer, which is already known.",
+      "relu has a sharp corner at 0, so GAN chooses a gradient of 0 there.",
+      "The numerical check now includes a small two-layer calculation, and it caught every one of eight wrong rules planted on purpose.",
+      "Reading with [ ] still refuses learnable tensors."
+    ],
+    "examples": [
+      "gradients.gan"
+    ],
+    "error_examples": [
+      "gradients_error.gan"
+    ]
+  },
+  {
+    "step": "32",
+    "title": "ask: talking to an AI model",
+    "status": "done",
+    "date": "2026-11-26",
+    "summary": "The first step towards agents: ask(question) sends text to Ollama on this computer and returns the model's answer as text. ask(question, model) chooses the model. The default is qwen2.5:7b.",
+    "learned": [
+      "ask uses only Go's standard library: it sends a small piece of JSON over HTTP and reads the reply.",
+      "The address is fixed to this computer, no proxy is used and redirects are not followed, so GAN does not pass the question on anywhere else. A cloud model set up inside Ollama would still go online.",
+      "The answer is only text; GAN never runs it.",
+      "A real model gives different answers, so automatic tests use a fake Ollama server. The real example is in live\\ask.gan and is run by hand.",
+      "In the first real run Ollama crashed with a graphics card (CUDA) error; GAN showed it with the line number. Later direct calls and three fresh starts through GAN worked. The cause was not found.",
+      "ask is not an agent yet: agents also need text escapes, dictionaries and JSON, tools, error handling and limits."
+    ],
+    "examples": [],
+    "error_examples": [
+      "ask_error.gan"
+    ]
+  },
+  {
     "step": "later",
     "title": "AI roadmap and other ideas",
     "status": "planned",

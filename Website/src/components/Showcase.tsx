@@ -17,7 +17,8 @@ export default function Showcase() {
           {/* the program on one side, what it prints on the other */}
           <div className="showcase-pair">
             <CodeBox title={sample.file} code={sample.code} />
-            <CodeBox title="what it prints" code={sample.output} />
+            {/* a model's answer is different every time, so say it is only an example */}
+            <CodeBox title={sample.varies ? "an example answer (yours may differ)" : "what it prints"} code={sample.output} />
           </div>
         </article>
       ))}

@@ -15,7 +15,11 @@ from common import ROOT, SRC
 
 def main():
     text = (SRC / "data" / "showcase.ts").read_text(encoding="utf-8")
-    samples = re.findall(r'file: "([^"]+)",\s*code: `(.*?)`,\s*output: `(.*?)`,', text, re.S)
+    found = re.findall(r'file: "([^"]+)",\s*code: `(.*?)`,\s*output: `(.*?)`,(\s*varies: true,)?', text, re.S)
+    for name, _, _, varies in found:
+        if varies:
+            print(f"skip  {name} (an AI model's answer, different every time)")
+    samples = [(name, code, output) for name, code, output, varies in found if not varies]
     if not samples:
         print("no samples found in showcase.ts")
         return 1

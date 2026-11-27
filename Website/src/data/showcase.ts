@@ -7,7 +7,19 @@ export const SHOWCASE_INTRO =
   "GAN's goal is to become a language designed for AI. These are its first AI building blocks. " +
   "Every sample below is a complete program.";
 
+// A sample with "varies: true" asks an AI model, so its answer differs from run to run. The
+// check script does not compare its output; the page labels it as an example answer.
 export const SHOWCASE = [
+  {
+    title: "Talk to an AI model",
+    text: "New: ask() sends a question to a model running on your own computer (with the free program Ollama) and gives back the answer as text. This is a first step towards AI agents.",
+    file: "ask.gan",
+    code: `let topic = "loops"
+let answer = ask("Explain " + topic + " in programming in one short sentence.")
+print(answer)`,
+    output: `Loops in programming are structures that allow a set of instructions to be executed repeatedly until a certain condition is met.`,
+    varies: true,
+  },
   {
     title: "A model that learns",
     text: "GAN calculates the gradients itself. This one-weight model learns to double a number: the weight moves towards 2.",
@@ -55,5 +67,6 @@ print(matmul(x, w))`,
 
 // Said plainly, so nobody expects more than the beta can do.
 export const BETA_NOTE =
-  "This is an early beta. Tensors run on the CPU, gradients work for a first set of operations " +
-  "(+ - * matmul sum mean), and GAN is not ready for large AI models.";
+  "This is an early beta. GAN is not an AI agent language yet: ask() sends one question and gets one text answer. " +
+  "It needs Ollama and a downloaded model. Tensors run on the CPU, gradients work through + - * / matmul " +
+  "transpose sum mean relu sigmoid tanh exp log (not [ ]), and GAN is not ready for large AI models.";

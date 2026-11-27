@@ -88,7 +88,7 @@ func fitTo(input *Tensor, g []float64) []float64 {
 	return g
 }
 
-// recordMath gives the result of + - * its history. a or b is nil when that side was a
+// recordMath gives the result of + - * / its history. a or b is nil when that side was a
 // plain number; x and y read the value each side had at position i.
 func recordMath(op string, result, a, b *Tensor, x, y func(i int) float64) {
 	// back builds the function for one side: share(g, i) is that side's gradient at i
@@ -112,6 +112,9 @@ func recordMath(op string, result, a, b *Tensor, x, y func(i int) float64) {
 	case "*": // each side's gradient is multiplied by the OTHER side's value
 		left = func(g []float64, i int) float64 { return g[i] * y(i) }
 		right = func(g []float64, i int) float64 { return g[i] * x(i) }
+	case "/": // x / y changes by 1/y when x moves, and by -x/(y*y) when y moves
+		left = func(g []float64, i int) float64 { return g[i] / y(i) }
+		right = func(g []float64, i int) float64 { return -g[i] * x(i) / (y(i) * y(i)) }
 	}
 	record(result, []*Tensor{a, b}, []func([]float64) []float64{back(a, left), back(b, right)})
 }
@@ -134,6 +137,42 @@ func recordMatmul(result, a, b *Tensor) {
 		func(g []float64) []float64 { return multiply(flip(a), asResult(g)) },
 	})
 }
+
+// recordTranspose: the gradient is simply transposed back.
+func recordTranspose(result, t *Tensor) {
+	record(result, []*Tensor{t}, []func([]float64) []float64{
+		func(g []float64) []float64 {
+			back, _ := transpose(&Tensor{Shape: result.Shape, Data: g}) // result is always a table
+			return back.Data
+		},
+	})
+}
+
+// recordEach is for functions that change each number on its own (relu, sigmoid, ...).
+// slope(x, y) says how fast the function's answer y changes when its input x changes.
+func recordEach(result, t *Tensor, slope func(x, y float64) float64) {
+	record(result, []*Tensor{t}, []func([]float64) []float64{
+		func(g []float64) []float64 {
+			out := make([]float64, len(g))
+			for i := range g {
+				out[i] = g[i] * slope(t.Data[i], result.Data[i])
+			}
+			return out
+		},
+	})
+}
+
+// The slopes of the neural network functions. x is the input and y is the answer.
+func reluSlope(x, _ float64) float64 {
+	if x > 0 {
+		return 1
+	}
+	return 0 // also at exactly 0
+}
+func sigmoidSlope(_, y float64) float64 { return y * (1 - y) }
+func tanhSlope(_, y float64) float64    { return 1 - y*y }
+func expSlope(_, y float64) float64     { return y } // exp is its own slope
+func logSlope(x, _ float64) float64     { return 1 / x }
 
 // total adds up a tensor (divide is 1 for sum, or the count for mean). A plain tensor gives
 // a plain number. A tracked one gives a one-number tensor, which can keep the history.

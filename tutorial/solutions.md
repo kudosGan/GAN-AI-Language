@@ -895,3 +895,29 @@ for round in 1 to 3 {
 45
 101.25
 ```
+
+## Lesson 16: Talking to a model
+
+These need Ollama, and answers differ, so no output is shown.
+
+**1.**
+
+```gan
+let word = input("A word? ")
+let sentence = ask("Write one short sentence that uses the word " + word + ".")
+print(sentence)
+if contains(lower(sentence), lower(word)) {
+    print("The word is there")
+} else {
+    print("The model left the word out")
+}
+```
+
+**2.**
+
+```gan
+func translate(text, language) {
+    return ask("Translate into " + language + ". Reply with only the translation: " + text)
+}
+print(translate("Good morning", "Spanish"))
+```

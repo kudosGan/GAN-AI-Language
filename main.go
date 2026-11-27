@@ -40,7 +40,7 @@ func main() {
 	}
 
 	if os.Args[1] == "--version" || os.Args[1] == "-v" {
-		fmt.Println("GAN 0.2 (beta)")
+		fmt.Println("GAN 0.3 (beta)")
 		return
 	}
 

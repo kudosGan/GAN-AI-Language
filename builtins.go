@@ -58,6 +58,27 @@ var builtins = map[string]builtin{
 		return nil, false, fmt.Errorf("len needs a list or text")
 	}},
 
+	// ---- AI models (the code that does the work is in ai.go) ----
+
+	// ask(question) or ask(question, model): the model's answer, as text
+	"ask": {1, 2, func(a []Value) (Value, bool, error) {
+		question, err := askArgument(a[0], "the question")
+		if err != nil {
+			return nil, false, err
+		}
+		model := defaultModel
+		if len(a) == 2 {
+			if model, err = askArgument(a[1], "the model name"); err != nil {
+				return nil, false, err
+			}
+		}
+		answer, err := askModel(question, model)
+		if err != nil {
+			return nil, false, err
+		}
+		return answer, true, nil
+	}},
+
 	// ---- tensors (the code that does the work is in tensor.go) ----
 
 	// tensor(list): make a tensor from a (nested) list of numbers
@@ -188,11 +209,11 @@ var builtins = map[string]builtin{
 	}},
 
 	// these work on one number or on every number of a tensor
-	"relu":    numberBuiltin("relu", relu, nil),
-	"sigmoid": numberBuiltin("sigmoid", sigmoid, nil),
-	"tanh":    numberBuiltin("tanh", math.Tanh, nil),
-	"exp":     numberBuiltin("exp", math.Exp, nil),
-	"log":     numberBuiltin("log", math.Log, positive),
+	"relu":    numberBuiltin("relu", relu, reluSlope, nil),
+	"sigmoid": numberBuiltin("sigmoid", sigmoid, sigmoidSlope, nil),
+	"tanh":    numberBuiltin("tanh", math.Tanh, tanhSlope, nil),
+	"exp":     numberBuiltin("exp", math.Exp, expSlope, nil),
+	"log":     numberBuiltin("log", math.Log, logSlope, positive),
 
 	// push(list, item): add an item to the end of a list (gives no value back)
 	"push": {2, 2, func(a []Value) (Value, bool, error) {

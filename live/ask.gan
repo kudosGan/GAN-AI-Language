@@ -1,0 +1,5 @@
+// Needs Ollama running on this computer. The last line can differ from run to run.
+let answer = ask("What is 2 + 3? Reply with only the number.")
+print(typeof(answer))
+print(len(answer) > 0)
+print("The model said: " + answer)

@@ -8,6 +8,7 @@
 .showcase-pair > * { min-width: 0; }                      /* lets long lines scroll inside the box */
 .showcase-pair .codebox code { font-size: 0.85rem; }      /* a little smaller to fit two boxes */
 .showcase-pair > *:last-child code { white-space: pre-wrap; } /* wrap long output such as errors */
+.showcase-pair > *:first-child code { white-space: pre-wrap; } /* and long lines of code */
 .showcase-note {                                           /* the honest "this is a beta" box */
   margin-top: 28px;
   padding: 14px 18px;
